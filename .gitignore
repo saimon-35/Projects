@@ -1,0 +1,29 @@
+# Python
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+
+# Flask / local DB
+instance/*.db
+*.sqlite3
+
+# Env secrets (keep .env.example in git)
+.env
+
+# Node (when you add frontend)
+node_modules/
+dist/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+frontend/node_modules
+frontend/dist
+frontend/.env.development.local
