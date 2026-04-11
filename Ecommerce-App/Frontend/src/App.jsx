@@ -3,6 +3,7 @@ import { CartProvider } from './context/CartContext';
 import ProductsPage from './pages/ProductsPage';
 import CartPage from './pages/CartPage';
 import CartButton from './components/CartButton';
+import ProductDetailPage from './pages/ProductDetailPage';
 import './App.css';
 
 export default function App() {
@@ -20,6 +21,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<ProductsPage />} />
             <Route path="/cart" element={<CartPage />} />
+             <Route path="/product/:id" element={<ProductDetailPage />} />
           </Routes>
         </div>
       </CartProvider>
