@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { apiUrl } from '../api.js';
-import { useCart } from '../context/cart';
+import { getProduct } from '../api.js';
+import { useCart } from '../context/cart.js';
 import './ProductDetailPage.css';
 
 export default function ProductDetailPage() {
@@ -22,14 +22,7 @@ export default function ProductDetailPage() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(apiUrl(`/api/products/${id}`));
-        if (!res.ok) {
-          if (res.status === 404) {
-            throw new Error('Product not found');
-          }
-          throw new Error(`HTTP ${res.status}`);
-        }
-        const data = await res.json();
+        const data = await getProduct(id);
         if (!cancelled) setProduct(data.product);
       } catch (e) {
         if (!cancelled) setError(e?.message || 'Failed to load product');

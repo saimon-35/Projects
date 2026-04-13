@@ -1,0 +1,148 @@
+.admin-page {
+  padding: 1.5rem;
+}
+
+.admin-header {
+  text-align: left;
+  margin-bottom: 1.5rem;
+}
+
+.admin-eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: 0.8rem;
+  color: var(--accent);
+  margin-bottom: 0.5rem;
+}
+
+.admin-subtitle {
+  max-width: 40rem;
+}
+
+.admin-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.admin-panel {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 1.25rem;
+  text-align: left;
+}
+
+.admin-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin-form label {
+  display: grid;
+  gap: 0.4rem;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.admin-form input,
+.admin-form textarea {
+  font: inherit;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text-h);
+}
+
+.admin-actions,
+.row-actions,
+.product-list-header {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.product-list-header {
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.admin-panel button {
+  font: inherit;
+  border: none;
+  border-radius: 999px;
+  padding: 0.7rem 1rem;
+  cursor: pointer;
+}
+
+.admin-panel button[type='submit'] {
+  background: var(--accent);
+  color: white;
+}
+
+.secondary-button {
+  background: var(--accent-bg);
+  color: var(--text-h);
+}
+
+.danger-button {
+  background: #c0392b;
+  color: white;
+}
+
+.status-message {
+  margin-top: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+}
+
+.status-message.error {
+  background: rgba(192, 57, 43, 0.12);
+  color: #c0392b;
+}
+
+.status-message.success {
+  background: rgba(39, 174, 96, 0.12);
+  color: #1e8449;
+}
+
+.admin-table-wrapper {
+  overflow-x: auto;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 0.85rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.admin-table th {
+  color: var(--text-h);
+}
+
+@media (max-width: 900px) {
+  .admin-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .admin-page {
+    padding: 1rem;
+  }
+
+  .row-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

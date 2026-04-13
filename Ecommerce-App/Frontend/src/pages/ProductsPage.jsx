@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { apiUrl } from '../api.js';
 import ProductCard from '../components/ProductCard';
+import { getProducts } from '../api.js';
 import './ProductsPage.css';
 
 export default function ProductsPage() {
@@ -15,9 +15,7 @@ export default function ProductsPage() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(apiUrl('/api/products'));
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
+        const data = await getProducts();
         if (!cancelled) setProducts(Array.isArray(data.products) ? data.products : []);
       } catch (e) {
         if (!cancelled) setError(e?.message || 'Failed to load products');

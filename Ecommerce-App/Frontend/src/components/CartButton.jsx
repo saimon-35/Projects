@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useCart } from '../context/cart';
+import { useCart } from '../context/cart.js';
 import './CartButton.css';
 
 export default function CartButton() {

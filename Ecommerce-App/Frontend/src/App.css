@@ -26,6 +26,22 @@
   color: var(--text-h);
 }
 
+.app-nav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.nav-link {
+  text-decoration: none;
+  color: inherit;
+  font-weight: 600;
+}
+
+.nav-link:hover {
+  color: var(--accent);
+}
+
 @media (max-width: 768px) {
   .app-header {
     padding: 1rem;
@@ -33,5 +49,9 @@
 
   .logo h1 {
     font-size: 1.4rem;
+  }
+
+  .app-nav {
+    gap: 0.6rem;
   }
 }
