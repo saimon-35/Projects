@@ -23,8 +23,20 @@ async function request(path, options = {}) {
   return data;
 }
 
-export function getProducts() {
-  return request('/api/products');
+export function getProducts(searchParams = {}) {
+  const { search, minPrice, maxPrice } = searchParams;
+  let url = '/api/products';
+  
+  const queryParams = [];
+  if (search) queryParams.push(`search=${encodeURIComponent(search)}`);
+  if (minPrice !== undefined) queryParams.push(`min_price=${minPrice}`);
+  if (maxPrice !== undefined) queryParams.push(`max_price=${maxPrice}`);
+  
+  if (queryParams.length > 0) {
+    url += '?' + queryParams.join('&');
+  }
+  
+  return request(url);
 }
 
 export function getProduct(id) {
