@@ -4,8 +4,9 @@ from dotenv import load_dotenv
 from flask import Flask
 from flask_cors import CORS
 
-from model import db
+from model import db, User
 from routes.products import products_bp
+from routes.auth import auth_bp
 from data import PRODUCTS
 from model import Product
 
@@ -31,12 +32,15 @@ def create_app():
     app = Flask(__name__, instance_relative_config=True)
     app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    # Set secret key for JWT
+    app.config["SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "fallback_secret_key_for_development")
 
     CORS(app)
     db.init_app(app)
 
     # Register blueprints
     app.register_blueprint(products_bp)
+    app.register_blueprint(auth_bp)
 
     with app.app_context():
         os.makedirs(app.instance_path, exist_ok=True)

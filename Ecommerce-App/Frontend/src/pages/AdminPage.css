@@ -146,3 +146,24 @@
     align-items: stretch;
   }
 }
+.admin-blocked {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+
+  text-align: center;
+  padding: 20px;
+  background: #f8f9fa;
+}
+.admin-blocked h2 {
+  font-size: 2rem;
+  color: #dc3545; /* red warning */
+  margin-bottom: 10px;
+}
+.admin-blocked p {
+  font-size: 1.1rem;
+  color: #555;
+  margin: 5px 0;
+}

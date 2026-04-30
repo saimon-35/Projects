@@ -42,6 +42,26 @@
   color: var(--accent);
 }
 
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.logout-button {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.logout-button:hover {
+  background-color: #c82333;
+}
+
 @media (max-width: 768px) {
   .app-header {
     padding: 1rem;

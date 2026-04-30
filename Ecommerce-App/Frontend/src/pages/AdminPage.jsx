@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import {
   createProduct,
   deleteProduct,
@@ -22,11 +24,30 @@ export default function AdminPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [blocked, setBlocked] = useState(false);
 
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    loadProducts();
-  }, []);
+  // Redirect to login if not authenticated
+useEffect(() => {
+  if (!user) {
+    navigate('/login');
+    return;
+  }
+
+  if (!user.is_admin) {
+    setBlocked(true);
+
+    const timer = setTimeout(() => {
+      navigate('/', { replace: true });
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }
+
+  loadProducts();
+}, [user, navigate]);
 
   async function loadProducts() {
     setLoading(true);
@@ -112,6 +133,15 @@ export default function AdminPage() {
       setError(err?.message || 'Failed to delete product');
     }
   }
+  if (blocked) {
+  return (
+    <div className="admin-blocked">
+      <h2>Access Denied</h2>
+      <p>You are not authorized to access the Admin Page.</p>
+      <p>Redirecting...</p>
+    </div>
+  );
+}
 
   return (
     <div className="admin-page">

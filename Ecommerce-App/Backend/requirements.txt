@@ -3,3 +3,5 @@ Flask-Cors
 python-dotenv
 Flask-SQLAlchemy
 psycopg2-binary
+PyJWT
+bcrypt

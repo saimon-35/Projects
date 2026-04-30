@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 from data import PRODUCTS
 from model import Product, db
+from auth import token_required, admin_required
 
 products_bp = Blueprint('products', __name__)
 
@@ -87,6 +88,7 @@ def list_products():
     return jsonify({"products": [product.to_dict() for product in products]}), 200
 
 @products_bp.route('/api/products', methods=['POST'])
+@admin_required
 def create_product():
     if not request.is_json:
         return jsonify({"error": "Expected JSON body"}), 400
@@ -113,6 +115,7 @@ def get_product(product_id):
     return jsonify({"product": product.to_dict()}), 200
 
 @products_bp.route('/api/products/<int:product_id>', methods=['PUT'])
+@admin_required
 def update_product(product_id):
     product = db.session.get(Product, product_id)
     if product is None:
@@ -139,6 +142,7 @@ def update_product(product_id):
     return jsonify({"product": product.to_dict()}), 200
 
 @products_bp.route('/api/products/<int:product_id>', methods=['DELETE'])
+@admin_required
 def delete_product(product_id):
     product = db.session.get(Product, product_id)
     if product is None:

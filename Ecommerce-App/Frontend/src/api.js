@@ -6,17 +6,25 @@ export function apiUrl(path) {
 }
 
 async function request(path, options = {}) {
+  // Get token from localStorage
+  const token = localStorage.getItem('token');
+  
   const response = await fetch(apiUrl(path), {
+    ...options,
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
       ...(options.headers || {}),
     },
-    ...options,
   });
 
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
+    // If we get a 401 Unauthorized, remove the token
+    if (response.status === 401) {
+      localStorage.removeItem('token');
+    }
     throw new Error(data.error || 'Request failed');
   }
 
