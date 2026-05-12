@@ -70,3 +70,40 @@ export function deleteProduct(id) {
     method: 'DELETE',
   });
 }
+
+export function getProfile() {
+  return request('/api/profile');
+}
+
+export function createAddress(payload) {
+  return request('/api/profile/addresses', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteAddress(id) {
+  return request(`/api/profile/addresses/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+export function addToWishlist(productId) {
+  return request('/api/profile/wishlist', {
+    method: 'POST',
+    body: JSON.stringify({ product_id: productId }),
+  });
+}
+
+export function removeFromWishlist(productId) {
+  return request(`/api/profile/wishlist/${productId}`, {
+    method: 'DELETE',
+  });
+}
+
+export function createOrder(payload) {
+  return request('/api/orders', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}

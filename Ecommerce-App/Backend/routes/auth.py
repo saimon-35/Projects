@@ -75,7 +75,6 @@ def register():
     # Create new user
     user = User(username=username, email=email)
     user.set_password(password)
-    print("User count:", User.query.count())
     # Make first user admin (optional)
     if User.query.count() == 0:
         user.is_admin = True

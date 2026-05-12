@@ -30,6 +30,33 @@
   margin-bottom: 2rem;
 }
 
+.checkout-panel {
+  background: #fff9ef;
+  border: 1px solid #f0d7a7;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.checkout-panel label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.6rem;
+}
+
+.checkout-panel select {
+  width: 100%;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: white;
+}
+
+.checkout-panel p {
+  margin: 0.75rem 0 0;
+  color: #8b2d2d;
+}
+
 .summary-row {
   display: flex;
   justify-content: space-between;

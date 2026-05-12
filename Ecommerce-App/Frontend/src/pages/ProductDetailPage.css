@@ -110,6 +110,22 @@
   margin-bottom: 2rem;
 }
 
+.wishlist-detail-btn {
+  width: 100%;
+  padding: 1rem 1.2rem;
+  border: 1px solid #e0b1b8;
+  border-radius: 8px;
+  background: #fff4f5;
+  color: #9d3040;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 1rem;
+}
+
+.wishlist-detail-btn.active {
+  background: #ffe3e7;
+}
+
 .quantity-selector {
   display: flex;
   align-items: center;

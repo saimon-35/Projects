@@ -8,6 +8,7 @@ import CartButton from './components/CartButton';
 import ProductDetailPage from './pages/ProductDetailPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import ProfilePage from './pages/ProfilePage';
 import './App.css';
 
 function Header() {
@@ -27,6 +28,9 @@ function Header() {
         </Link>
         {user ? (
           <div className="user-menu">
+            <Link to="/profile" className="nav-link">
+              Profile
+            </Link>
             <span>Welcome, {user.username}</span>
             <button onClick={logout} className="logout-button">
               Logout
@@ -63,6 +67,7 @@ export default function App() {
               <Route path="/admin" element={<AdminPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
+              <Route path="/profile" element={<ProfilePage />} />
             </Routes>
           </div>
         </CartProvider>

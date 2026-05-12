@@ -3,7 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/cart.js';
 import './ProductCard.css';
 
-export default function ProductCard({ product }) {
+export default function ProductCard({
+  product,
+  isWishlisted = false,
+  onToggleWishlist,
+  wishlistBusy = false,
+}) {
   const navigate = useNavigate();
   const { addToCart } = useCart();
   const [added, setAdded] = useState(false);
@@ -19,9 +24,27 @@ export default function ProductCard({ product }) {
     navigate(`/product/${product.id}`);
   };
 
+  const handleWishlistClick = (e) => {
+    e.stopPropagation();
+    if (onToggleWishlist) {
+      onToggleWishlist(product.id, isWishlisted);
+    }
+  };
+
   return (
     <li className="product-card" onClick={handleCardClick}>
       <div className="product-card-content">
+        {onToggleWishlist && (
+          <button
+            type="button"
+            className={`wishlist-btn ${isWishlisted ? 'active' : ''}`}
+            onClick={handleWishlistClick}
+            disabled={wishlistBusy}
+            aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+          >
+            {isWishlisted ? '♥' : '♡'}
+          </button>
+        )}
         {product.image && (
           <div className="product-image-container">
             <img src={product.image} alt={product.name} className="product-image" />

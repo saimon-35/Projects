@@ -1,19 +1,23 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getProduct } from '../api.js';
+import { addToWishlist, getProduct, getProfile, removeFromWishlist } from '../api.js';
 import { useCart } from '../context/cart.js';
+import { useAuth } from '../context/AuthContext';
 import './ProductDetailPage.css';
 
 export default function ProductDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToCart } = useCart();
+  const { user } = useAuth();
   
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
+  const [isWishlisted, setIsWishlisted] = useState(false);
+  const [wishlistBusy, setWishlistBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -37,6 +41,35 @@ export default function ProductDetailPage() {
     };
   }, [id]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadWishlistState() {
+      if (!user) {
+        setIsWishlisted(false);
+        return;
+      }
+
+      try {
+        const data = await getProfile();
+        if (!cancelled) {
+          const found = (data.wishlist || []).some((item) => item.product?.id === Number(id));
+          setIsWishlisted(found);
+        }
+      } catch {
+        if (!cancelled) {
+          setIsWishlisted(false);
+        }
+      }
+    }
+
+    loadWishlistState();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, user]);
+
   const handleAddToCart = () => {
     if (!product) return;
     
@@ -51,6 +84,23 @@ export default function ProductDetailPage() {
 
   const handleQuantityChange = (delta) => {
     setQuantity((prev) => Math.max(1, prev + delta));
+  };
+
+  const handleToggleWishlist = async () => {
+    setWishlistBusy(true);
+    try {
+      if (isWishlisted) {
+        await removeFromWishlist(id);
+        setIsWishlisted(false);
+      } else {
+        await addToWishlist(id);
+        setIsWishlisted(true);
+      }
+    } catch (e) {
+      setError(e?.message || 'Failed to update wishlist');
+    } finally {
+      setWishlistBusy(false);
+    }
   };
 
   if (loading) {
@@ -112,6 +162,17 @@ export default function ProductDetailPage() {
           </div>
 
           <div className="purchase-section">
+            {user && (
+              <button
+                type="button"
+                className={`wishlist-detail-btn ${isWishlisted ? 'active' : ''}`}
+                onClick={handleToggleWishlist}
+                disabled={wishlistBusy}
+              >
+                {isWishlisted ? 'Remove from Wishlist' : 'Save to Wishlist'}
+              </button>
+            )}
+
             <div className="quantity-selector">
               <label>Quantity:</label>
               <div className="quantity-controls">

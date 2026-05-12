@@ -7,6 +7,7 @@ from flask_cors import CORS
 from model import db, User
 from routes.products import products_bp
 from routes.auth import auth_bp
+from routes.profile import profile_bp
 from data import PRODUCTS
 from model import Product
 
@@ -41,6 +42,7 @@ def create_app():
     # Register blueprints
     app.register_blueprint(products_bp)
     app.register_blueprint(auth_bp)
+    app.register_blueprint(profile_bp)
 
     with app.app_context():
         os.makedirs(app.instance_path, exist_ok=True)

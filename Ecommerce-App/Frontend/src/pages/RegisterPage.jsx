@@ -29,7 +29,7 @@ export default function RegisterPage() {
     const result = await register(username, email, password);
     
     if (result.success) {
-      navigate('/admin');
+      navigate('/profile');
     } else {
       setError(result.error || 'Failed to register');
     }

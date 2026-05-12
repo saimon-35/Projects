@@ -1,12 +1,16 @@
 import { useEffect, useState } from 'react';
 import ProductCard from '../components/ProductCard';
-import { getProducts } from '../api.js';
+import { addToWishlist, getProducts, getProfile, removeFromWishlist } from '../api.js';
+import { useAuth } from '../context/AuthContext';
 import './ProductsPage.css';
 
 export default function ProductsPage() {
+  const { user } = useAuth();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [wishlistIds, setWishlistIds] = useState([]);
+  const [wishlistBusyId, setWishlistBusyId] = useState(null);
   
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -42,11 +46,59 @@ export default function ProductsPage() {
     };
   }, [searchTerm, minPrice, maxPrice]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadWishlist() {
+      if (!user) {
+        setWishlistIds([]);
+        return;
+      }
+
+      try {
+        const data = await getProfile();
+        if (!cancelled) {
+          const ids = (data.wishlist || [])
+            .map((item) => item.product?.id)
+            .filter(Boolean);
+          setWishlistIds(ids);
+        }
+      } catch {
+        if (!cancelled) {
+          setWishlistIds([]);
+        }
+      }
+    }
+
+    loadWishlist();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
   // Reset filters
   const resetFilters = () => {
     setSearchTerm('');
     setMinPrice('');
     setMaxPrice('');
+  };
+
+  const handleToggleWishlist = async (productId, isWishlisted) => {
+    setWishlistBusyId(productId);
+    try {
+      if (isWishlisted) {
+        await removeFromWishlist(productId);
+        setWishlistIds((current) => current.filter((id) => id !== productId));
+      } else {
+        await addToWishlist(productId);
+        setWishlistIds((current) => (current.includes(productId) ? current : [...current, productId]));
+      }
+    } catch (e) {
+      setError(e?.message || 'Failed to update wishlist');
+    } finally {
+      setWishlistBusyId(null);
+    }
   };
 
   return (
@@ -122,7 +174,13 @@ export default function ProductsPage() {
           ) : (
             <ul className="product-grid">
               {products.map((p) => (
-                <ProductCard key={p.id} product={p} />
+                <ProductCard
+                  key={p.id}
+                  product={p}
+                  isWishlisted={wishlistIds.includes(p.id)}
+                  onToggleWishlist={user ? handleToggleWishlist : undefined}
+                  wishlistBusy={wishlistBusyId === p.id}
+                />
               ))}
             </ul>
           )}

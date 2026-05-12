@@ -6,6 +6,7 @@
   flex-direction: column;
   cursor: pointer;
   transition: all 0.3s ease;
+  position: relative;
 }
 
 .product-card:hover {
@@ -16,6 +17,26 @@
 
 .product-card-content {
   flex-grow: 1;
+}
+
+.wishlist-btn {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  border: 1px solid #f0c8cc;
+  background: rgba(255, 255, 255, 0.92);
+  color: #b93f52;
+  font-size: 1.15rem;
+  cursor: pointer;
+  z-index: 1000;
+}
+
+.wishlist-btn.active {
+  background: #fff0f2;
+  border-color: #e79da7;
 }
 
 .product-image-container {
