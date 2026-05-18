@@ -9,6 +9,7 @@ import ProductDetailPage from './pages/ProductDetailPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ProfilePage from './pages/ProfilePage';
+import CheckoutPage from './pages/CheckoutPage';
 import './App.css';
 
 function Header() {
@@ -63,11 +64,12 @@ export default function App() {
             <Routes>
               <Route path="/" element={<ProductsPage />} />
               <Route path="/cart" element={<CartPage />} />
-               <Route path="/product/:id" element={<ProductDetailPage />} />
+              <Route path="/product/:id" element={<ProductDetailPage />} />
               <Route path="/admin" element={<AdminPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/checkout" element={<CheckoutPage />} />
             </Routes>
           </div>
         </CartProvider>

@@ -6,7 +6,6 @@ export function apiUrl(path) {
 }
 
 async function request(path, options = {}) {
-  // Get token from localStorage
   const token = localStorage.getItem('token');
   
   const response = await fetch(apiUrl(path), {
@@ -21,7 +20,6 @@ async function request(path, options = {}) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    // If we get a 401 Unauthorized, remove the token
     if (response.status === 401) {
       localStorage.removeItem('token');
     }
@@ -101,9 +99,35 @@ export function removeFromWishlist(productId) {
   });
 }
 
+// ─── Legacy direct-order (kept for non-payment flows) ────────────────────────
 export function createOrder(payload) {
   return request('/api/orders', {
     method: 'POST',
     body: JSON.stringify(payload),
+  });
+}
+
+// ─── Stripe payment flow ──────────────────────────────────────────────────────
+
+/**
+ * Ask the backend to create a Stripe PaymentIntent.
+ * Returns { clientSecret, amount, currency }
+ */
+export function createPaymentIntent(payload) {
+  return request('/api/payments/create-intent', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+/**
+ * After Stripe confirms payment on the client, tell the backend to
+ * create the Order record and return it.
+ * Returns { order, message }
+ */
+export function confirmOrder(paymentIntentId) {
+  return request('/api/payments/confirm-order', {
+    method: 'POST',
+    body: JSON.stringify({ payment_intent_id: paymentIntentId }),
   });
 }

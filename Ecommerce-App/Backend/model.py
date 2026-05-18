@@ -111,6 +111,8 @@ class Order(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     address_id = db.Column(db.Integer, db.ForeignKey("addresses.id"), nullable=False)
     total_amount = db.Column(db.Float, nullable=False, default=0)
+    # Stripe PaymentIntent ID — used for idempotency and receipt lookup
+    payment_intent_id = db.Column(db.String(255), nullable=True, unique=True, index=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     shipping_address = db.relationship("Address")
     items = db.relationship(
@@ -125,6 +127,7 @@ class Order(db.Model):
         return {
             "id": self.id,
             "total_amount": self.total_amount,
+            "payment_intent_id": self.payment_intent_id,
             "created_at": self.created_at.isoformat(),
             "shipping_address": self.shipping_address.to_dict() if self.shipping_address else None,
             "items": [item.to_dict() for item in self.items],
