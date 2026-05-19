@@ -7,6 +7,7 @@ import {
   getProducts,
   updateProduct,
 } from '../api.js';
+import ImageUploader from '../components/ImageUploader';
 import './AdminPage.css';
 
 const emptyForm = {
@@ -25,29 +26,28 @@ export default function AdminPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [blocked, setBlocked] = useState(false);
+  // Track whether the user is using file upload or URL mode
+  const [imageMode, setImageMode] = useState('upload'); // 'upload' | 'url'
 
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  // Redirect to login if not authenticated
-useEffect(() => {
-  if (!user) {
-    navigate('/login');
-    return;
-  }
+  useEffect(() => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
 
-  if (!user.is_admin) {
-    setBlocked(true);
+    if (!user.is_admin) {
+      setBlocked(true);
+      const timer = setTimeout(() => {
+        navigate('/', { replace: true });
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
 
-    const timer = setTimeout(() => {
-      navigate('/', { replace: true });
-    }, 3000);
-
-    return () => clearTimeout(timer);
-  }
-
-  loadProducts();
-}, [user, navigate]);
+    loadProducts();
+  }, [user, navigate]);
 
   async function loadProducts() {
     setLoading(true);
@@ -67,9 +67,15 @@ useEffect(() => {
     setForm((current) => ({ ...current, [name]: value }));
   }
 
+  // Called by ImageUploader when a file is uploaded successfully
+  function handleImageUploaded(url) {
+    setForm((current) => ({ ...current, image: url }));
+  }
+
   function resetForm() {
     setForm(emptyForm);
     setEditingId(null);
+    setImageMode('upload');
   }
 
   function startEdit(product) {
@@ -80,6 +86,12 @@ useEffect(() => {
       description: product.description || '',
       image: product.image || '',
     });
+    // If existing image is an external URL, default to URL mode
+    setImageMode(
+      product.image && !product.image.startsWith('/static/uploads/')
+        ? 'url'
+        : 'upload'
+    );
     setSuccess('');
     setError('');
   }
@@ -125,23 +137,22 @@ useEffect(() => {
     try {
       await deleteProduct(productId);
       setProducts((current) => current.filter((product) => product.id !== productId));
-      if (editingId === productId) {
-        resetForm();
-      }
+      if (editingId === productId) resetForm();
       setSuccess('Product deleted successfully.');
     } catch (err) {
       setError(err?.message || 'Failed to delete product');
     }
   }
+
   if (blocked) {
-  return (
-    <div className="admin-blocked">
-      <h2>Access Denied</h2>
-      <p>You are not authorized to access the Admin Page.</p>
-      <p>Redirecting...</p>
-    </div>
-  );
-}
+    return (
+      <div className="admin-blocked">
+        <h2>Access Denied</h2>
+        <p>You are not authorized to access the Admin Page.</p>
+        <p>Redirecting…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="admin-page">
@@ -156,6 +167,7 @@ useEffect(() => {
       </div>
 
       <div className="admin-layout">
+        {/* ── Form panel ──────────────────────────────────────────────── */}
         <section className="admin-panel">
           <h2>{editingId ? 'Edit Product' : 'Add Product'}</h2>
           <form className="admin-form" onSubmit={handleSubmit}>
@@ -191,23 +203,58 @@ useEffect(() => {
                 value={form.description}
                 onChange={handleChange}
                 placeholder="Short product description"
-                rows="5"
+                rows="4"
               />
             </label>
 
-            <label>
-              Image URL
-              <input
-                name="image"
-                value={form.image}
-                onChange={handleChange}
-                placeholder="https://example.com/image.jpg"
-              />
-            </label>
+            {/* ── Image section ──────────────────────────────────────── */}
+            <div className="image-field">
+              <div className="image-mode-tabs">
+                <button
+                  type="button"
+                  className={`mode-tab ${imageMode === 'upload' ? 'active' : ''}`}
+                  onClick={() => setImageMode('upload')}
+                >
+                  📁 Upload file
+                </button>
+                <button
+                  type="button"
+                  className={`mode-tab ${imageMode === 'url' ? 'active' : ''}`}
+                  onClick={() => setImageMode('url')}
+                >
+                  🔗 Paste URL
+                </button>
+              </div>
+
+              {imageMode === 'upload' ? (
+                <ImageUploader
+                  currentUrl={form.image}
+                  onUploaded={handleImageUploaded}
+                />
+              ) : (
+                <label>
+                  Image URL
+                  <input
+                    name="image"
+                    value={form.image}
+                    onChange={handleChange}
+                    placeholder="https://example.com/image.jpg"
+                  />
+                </label>
+              )}
+
+              {/* Always show a small current-image indicator */}
+              {form.image && (
+                <div className="current-image-preview">
+                  <img src={form.image} alt="Current product" />
+                  <span>Current image</span>
+                </div>
+              )}
+            </div>
 
             <div className="admin-actions">
               <button type="submit" disabled={saving}>
-                {saving ? 'Saving...' : editingId ? 'Update Product' : 'Create Product'}
+                {saving ? 'Saving…' : editingId ? 'Update Product' : 'Create Product'}
               </button>
               {editingId && (
                 <button type="button" className="secondary-button" onClick={resetForm}>
@@ -221,6 +268,7 @@ useEffect(() => {
           {success && <p className="status-message success">{success}</p>}
         </section>
 
+        {/* ── Product table ────────────────────────────────────────────── */}
         <section className="admin-panel">
           <div className="product-list-header">
             <h2>Product Inventory</h2>
@@ -230,7 +278,7 @@ useEffect(() => {
           </div>
 
           {loading ? (
-            <p>Loading products...</p>
+            <p>Loading products…</p>
           ) : products.length === 0 ? (
             <p>No products found.</p>
           ) : (
@@ -239,9 +287,9 @@ useEffect(() => {
                 <thead>
                   <tr>
                     <th>ID</th>
+                    <th>Image</th>
                     <th>Name</th>
                     <th>Price</th>
-                    <th>Description</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -249,9 +297,19 @@ useEffect(() => {
                   {products.map((product) => (
                     <tr key={product.id}>
                       <td>{product.id}</td>
+                      <td>
+                        {product.image ? (
+                          <img
+                            src={product.image}
+                            alt={product.name}
+                            className="table-thumb"
+                          />
+                        ) : (
+                          <span className="no-thumb">—</span>
+                        )}
+                      </td>
                       <td>{product.name}</td>
                       <td>${Number(product.price).toFixed(2)}</td>
-                      <td>{product.description || 'No description'}</td>
                       <td className="row-actions">
                         <button
                           type="button"

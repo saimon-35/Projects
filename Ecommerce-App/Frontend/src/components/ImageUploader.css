@@ -1,0 +1,165 @@
+.image-uploader {
+  display: grid;
+  gap: 0.6rem;
+}
+
+/* ── Drop zone ────────────────────────────────────────────────────────────── */
+.drop-zone {
+  border: 2px dashed var(--border, #d0d5dd);
+  border-radius: 12px;
+  background: var(--bg, #fafafa);
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  overflow: hidden;
+  min-height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.drop-zone:hover,
+.drop-zone:focus-visible {
+  border-color: var(--accent, #aa3bff);
+  background: #faf5ff;
+  outline: none;
+}
+
+.drop-zone.drag-over {
+  border-color: var(--accent, #aa3bff);
+  background: #f3e8ff;
+  transform: scale(1.01);
+}
+
+/* ── Empty prompt ─────────────────────────────────────────────────────────── */
+.drop-prompt {
+  text-align: center;
+  padding: 2rem 1rem;
+  pointer-events: none;
+}
+
+.drop-icon {
+  font-size: 2.5rem;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.drop-title {
+  font-weight: 600;
+  color: var(--text-h, #1a1a2e);
+  margin: 0 0 0.3rem;
+  font-size: 0.95rem;
+}
+
+.drop-sub {
+  font-size: 0.78rem;
+  color: #8a90a8;
+  margin: 0;
+}
+
+/* ── Preview ──────────────────────────────────────────────────────────────── */
+.drop-zone.has-preview {
+  min-height: 200px;
+  border-style: solid;
+  border-color: var(--border, #d0d5dd);
+  cursor: default;
+}
+
+.preview-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 200px;
+}
+
+.preview-img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  display: block;
+  border-radius: 10px;
+}
+
+.upload-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: 10px;
+}
+
+.upload-spinner {
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Action buttons ───────────────────────────────────────────────────────── */
+.uploader-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.upload-browse-btn {
+  flex: 1;
+  padding: 0.6rem 1rem;
+  background: var(--accent-bg, #f3e8ff);
+  color: var(--accent, #aa3bff);
+  border: 1px solid #d8b4fe;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.upload-browse-btn:hover:not(:disabled) {
+  background: #ede4ff;
+}
+
+.upload-browse-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.upload-clear-btn {
+  padding: 0.6rem 0.85rem;
+  background: #fff2f2;
+  color: #c0392b;
+  border: 1px solid #fbc8c8;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.upload-clear-btn:hover {
+  background: #ffe0e0;
+}
+
+/* ── Error ────────────────────────────────────────────────────────────────── */
+.uploader-error {
+  font-size: 0.82rem;
+  color: #c0392b;
+  background: #fff2f2;
+  border: 1px solid #fbc8c8;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  margin: 0;
+}

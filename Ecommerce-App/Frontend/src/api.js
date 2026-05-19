@@ -107,6 +107,30 @@ export function createOrder(payload) {
   });
 }
 
+/**
+ * Upload a product image (multipart/form-data).
+ * Returns { url, filename }
+ */
+export function uploadProductImage(file) {
+  const token = localStorage.getItem('token');
+  const formData = new FormData();
+  formData.append('image', file);
+
+  return fetch(apiUrl('/api/upload/product-image'), {
+    method: 'POST',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      // Do NOT set Content-Type here – browser sets it with the boundary
+    },
+    body: formData,
+  })
+    .then(async (res) => {
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      return data;
+    });
+}
+
 // ─── Stripe payment flow ──────────────────────────────────────────────────────
 
 /**

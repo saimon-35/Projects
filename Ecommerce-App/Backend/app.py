@@ -9,6 +9,7 @@ from routes.products import products_bp
 from routes.auth import auth_bp
 from routes.profile import profile_bp
 from routes.payment import payment_bp
+from routes.upload import upload_bp
 from data import PRODUCTS
 from model import Product
 from flask_migrate import Migrate
@@ -36,6 +37,7 @@ def create_app():
     app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "fallback_secret_key_for_development")
+    app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024  # 5 MB upload limit
 
     CORS(app)
     db.init_app(app)
@@ -46,6 +48,7 @@ def create_app():
     app.register_blueprint(auth_bp)
     app.register_blueprint(profile_bp)
     app.register_blueprint(payment_bp)
+    app.register_blueprint(upload_bp)
 
     with app.app_context():
         os.makedirs(app.instance_path, exist_ok=True)
