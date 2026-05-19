@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
+import { useState } from 'react';
+import { BrowserRouter, Routes, Route, Link, useNavigate } from 'react-router-dom';
 import { CartProvider } from './context/CartContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import ProductsPage from './pages/ProductsPage';
@@ -14,39 +15,62 @@ import './App.css';
 
 function Header() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const handleSearch = (event) => {
+    event.preventDefault();
+    const query = searchQuery.trim();
+    navigate(query ? `/?search=${encodeURIComponent(query)}` : '/');
+  };
 
   return (
     <header className="app-header">
-      <Link to="/" className="logo">
-        <h1>🛍️ E-Shop</h1>
+      <Link to="/" className="logo" aria-label="E-Shop home">
+        <span className="logo-mark">E</span>
+        <span className="logo-text">E-Shop</span>
       </Link>
-      <nav className="app-nav">
-        <Link to="/" className="nav-link">
-          Store
-        </Link>
-        <Link to="/admin" className="nav-link">
-          Admin
-        </Link>
+
+      <form className="header-search" onSubmit={handleSearch} role="search">
+        <input
+          type="search"
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          placeholder="Search for products, brands and more"
+          aria-label="Search products"
+        />
+        <button type="submit">Search</button>
+      </form>
+
+      <nav className="app-nav" aria-label="Primary navigation">
         {user ? (
-          <div className="user-menu">
-            <Link to="/profile" className="nav-link">
-              Profile
+          <>
+            <Link to="/profile" className="nav-action">
+              <span className="nav-action-kicker">Hello, {user.username}</span>
+              <span className="nav-action-label">Account</span>
             </Link>
-            <span>Welcome, {user.username}</span>
-            <button onClick={logout} className="logout-button">
-              Logout
+            <button onClick={logout} className="nav-action logout-button">
+              <span className="nav-action-kicker">Account</span>
+              <span className="nav-action-label">Logout</span>
             </button>
-          </div>
+          </>
         ) : (
           <>
-            <Link to="/login" className="nav-link">
-              Login
+            <Link to="/login" className="nav-action">
+              <span className="nav-action-kicker">Hello, sign in</span>
+              <span className="nav-action-label">Account</span>
             </Link>
-            <Link to="/register" className="nav-link">
-              Register
-            </Link>
+            <Link to="/register" className="nav-register">Register</Link>
           </>
         )}
+        <Link to="/profile" className="nav-action orders-link">
+          <span className="nav-action-kicker">Returns</span>
+          <span className="nav-action-label">& Orders</span>
+        </Link>
+        <Link to="/admin" className="nav-action admin-link">
+          <span className="nav-action-kicker">Seller</span>
+          <span className="nav-action-label">Admin</span>
+        </Link>
         <CartButton />
       </nav>
     </header>

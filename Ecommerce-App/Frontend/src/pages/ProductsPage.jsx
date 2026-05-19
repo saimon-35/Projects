@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
 import { addToWishlist, getProducts, getProfile, removeFromWishlist } from '../api.js';
 import { useAuth } from '../context/AuthContext';
@@ -12,6 +12,7 @@ export default function ProductsPage() {
   const { user } = useAuth();
   const { addToCart } = useCart();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -28,6 +29,10 @@ export default function ProductsPage() {
 
   const heroRef = useRef(null);
   const gridRef = useRef(null);
+
+  useEffect(() => {
+    setSearchTerm(searchParams.get('search') || '');
+  }, [searchParams]);
 
   // Parallax on hero
   useEffect(() => {

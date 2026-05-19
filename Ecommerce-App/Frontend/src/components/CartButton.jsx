@@ -8,8 +8,8 @@ export default function CartButton() {
   const count = getCartCount();
 
   return (
-    <button className="cart-button" onClick={() => navigate('/cart')}>
-      <span className="cart-icon">🛒</span>
+    <button className="cart-button" onClick={() => navigate('/cart')} aria-label={`Cart with ${count} items`}>
+      <span className="cart-icon" aria-hidden="true">Cart</span>
       {count > 0 && <span className="cart-badge">{count}</span>}
     </button>
   );
