@@ -14,26 +14,42 @@ export default function ProductCard({
   const [added, setAdded] = useState(false);
 
   const handleAddToCart = (e) => {
-    e.stopPropagation(); // Prevent navigation when clicking add to cart
+    e.stopPropagation();
     addToCart(product);
     setAdded(true);
-    setTimeout(() => setAdded(false), 1500);
+    setTimeout(() => setAdded(false), 1600);
   };
 
-  const handleCardClick = () => {
-    navigate(`/product/${product.id}`);
-  };
+  const handleCardClick = () => navigate(`/product/${product.id}`);
 
   const handleWishlistClick = (e) => {
     e.stopPropagation();
-    if (onToggleWishlist) {
-      onToggleWishlist(product.id, isWishlisted);
-    }
+    if (onToggleWishlist) onToggleWishlist(product.id, isWishlisted);
   };
 
   return (
-    <li className="product-card" onClick={handleCardClick}>
-      <div className="product-card-content">
+    <div className="product-card" onClick={handleCardClick}>
+      {/* Image */}
+      <div className="product-card-image">
+        {product.image ? (
+          <img src={product.image} alt={product.name} className="product-image" loading="lazy" />
+        ) : (
+          <div className="product-no-image">
+            <span>📦</span>
+          </div>
+        )}
+
+        {/* Overlay actions on hover */}
+        <div className="product-card-overlay">
+          <button
+            className="overlay-view-btn"
+            onClick={handleCardClick}
+          >
+            Quick View →
+          </button>
+        </div>
+
+        {/* Wishlist */}
         {onToggleWishlist && (
           <button
             type="button"
@@ -45,22 +61,35 @@ export default function ProductCard({
             {isWishlisted ? '♥' : '♡'}
           </button>
         )}
-        {product.image && (
-          <div className="product-image-container">
-            <img src={product.image} alt={product.name} className="product-image" />
-          </div>
-        )}
-        <h2>{product.name}</h2>
-        <p className="price">${Number(product.price).toFixed(2)}</p>
-        {product.description && <p className="desc">{product.description}</p>}
       </div>
-      <button
-        className={`add-to-cart-btn ${added ? 'added' : ''}`}
-        onClick={handleAddToCart}
-        disabled={added}
-      >
-        {added ? '✓ Added!' : 'Add to Cart'}
-      </button>
-    </li>
+
+      {/* Info */}
+      <div className="product-card-body">
+        <div className="product-card-meta">
+          <h2 className="product-card-name">{product.name}</h2>
+          <span className="product-card-price">${Number(product.price).toFixed(2)}</span>
+        </div>
+
+        {product.description && (
+          <p className="product-card-desc">{product.description}</p>
+        )}
+
+        <button
+          className={`add-to-cart-btn ${added ? 'added' : ''}`}
+          onClick={handleAddToCart}
+          disabled={added}
+        >
+          <span className="btn-label">
+            {added ? (
+              <>
+                <span className="btn-check">✓</span> Added to Cart
+              </>
+            ) : (
+              'Add to Cart'
+            )}
+          </span>
+        </button>
+      </div>
+    </div>
   );
 }

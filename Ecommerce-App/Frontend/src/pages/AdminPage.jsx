@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -10,44 +10,102 @@ import {
 import ImageUploader from '../components/ImageUploader';
 import './AdminPage.css';
 
-const emptyForm = {
-  name: '',
-  price: '',
-  description: '',
-  image: '',
-};
+const emptyForm = { name: '', price: '', description: '', image: '' };
+
+const NAV_ITEMS = [
+  { id: 'overview',  icon: '⊞', label: 'Overview' },
+  { id: 'products',  icon: '◫', label: 'Products' },
+  { id: 'orders',    icon: '◳', label: 'Orders' },
+  { id: 'customers', icon: '◎', label: 'Customers' },
+  { id: 'analytics', icon: '◈', label: 'Analytics' },
+  { id: 'settings',  icon: '◉', label: 'Settings' },
+];
+
+// Tiny sparkline SVG
+function Sparkline({ values = [], color = '#10b981', height = 36 }) {
+  if (!values.length) return null;
+  const max = Math.max(...values, 1);
+  const min = Math.min(...values);
+  const range = max - min || 1;
+  const w = 100, h = height;
+  const pts = values.map((v, i) => {
+    const x = (i / (values.length - 1)) * w;
+    const y = h - ((v - min) / range) * (h - 4) - 2;
+    return `${x},${y}`;
+  });
+  const areaPath = `M${pts[0]} L${pts.join(' L')} L${w},${h} L0,${h} Z`;
+  const linePath = `M${pts.join(' L')}`;
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="sparkline">
+      <defs>
+        <linearGradient id={`g-${color.replace('#','')}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.25" />
+          <stop offset="100%" stopColor={color} stopOpacity="0.02" />
+        </linearGradient>
+      </defs>
+      <path d={areaPath} fill={`url(#g-${color.replace('#','')})`} />
+      <path d={linePath} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+// Metric card
+function MetricCard({ label, value, delta, color, sparkData, icon, prefix = '' }) {
+  const positive = delta >= 0;
+  return (
+    <div className="metric-card">
+      <div className="metric-top">
+        <div className="metric-icon" style={{ background: `${color}18`, color }}>
+          {icon}
+        </div>
+        <span className={`metric-delta ${positive ? 'up' : 'down'}`}>
+          {positive ? '↑' : '↓'} {Math.abs(delta)}%
+        </span>
+      </div>
+      <div className="metric-value">{prefix}{value}</div>
+      <div className="metric-label">{label}</div>
+      <div className="metric-spark">
+        <Sparkline values={sparkData} color={color} />
+      </div>
+    </div>
+  );
+}
 
 export default function AdminPage() {
+  const [activeNav, setActiveNav] = useState('overview');
   const [products, setProducts] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
+  const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [blocked, setBlocked] = useState(false);
-  // Track whether the user is using file upload or URL mode
-  const [imageMode, setImageMode] = useState('upload'); // 'upload' | 'url'
+  const [imageMode, setImageMode] = useState('upload');
+  const [searchQ, setSearchQ] = useState('');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   const { user } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
-
+    if (!user) { navigate('/login'); return; }
     if (!user.is_admin) {
       setBlocked(true);
-      const timer = setTimeout(() => {
-        navigate('/', { replace: true });
-      }, 3000);
-      return () => clearTimeout(timer);
+      const t = setTimeout(() => navigate('/', { replace: true }), 3000);
+      return () => clearTimeout(t);
     }
-
     loadProducts();
   }, [user, navigate]);
+
+  // Auto-clear success message
+  useEffect(() => {
+    if (!success) return;
+    const t = setTimeout(() => setSuccess(''), 3500);
+    return () => clearTimeout(t);
+  }, [success]);
 
   async function loadProducts() {
     setLoading(true);
@@ -55,27 +113,20 @@ export default function AdminPage() {
     try {
       const data = await getProducts();
       setProducts(Array.isArray(data.products) ? data.products : []);
-    } catch (err) {
-      setError(err?.message || 'Failed to load products');
+    } catch (e) {
+      setError(e?.message || 'Failed to load products');
     } finally {
       setLoading(false);
     }
   }
 
-  function handleChange(event) {
-    const { name, value } = event.target;
-    setForm((current) => ({ ...current, [name]: value }));
-  }
-
-  // Called by ImageUploader when a file is uploaded successfully
-  function handleImageUploaded(url) {
-    setForm((current) => ({ ...current, image: url }));
-  }
-
-  function resetForm() {
+  function openCreateForm() {
     setForm(emptyForm);
     setEditingId(null);
     setImageMode('upload');
+    setShowForm(true);
+    setError('');
+    setSuccess('');
   }
 
   function startEdit(product) {
@@ -86,254 +137,480 @@ export default function AdminPage() {
       description: product.description || '',
       image: product.image || '',
     });
-    // If existing image is an external URL, default to URL mode
     setImageMode(
-      product.image && !product.image.startsWith('/static/uploads/')
-        ? 'url'
-        : 'upload'
+      product.image && !product.image.startsWith('/static/uploads/') ? 'url' : 'upload'
     );
-    setSuccess('');
+    setShowForm(true);
     setError('');
+    setSuccess('');
+    setActiveNav('products');
   }
 
-  async function handleSubmit(event) {
-    event.preventDefault();
+  function closeForm() {
+    setShowForm(false);
+    setEditingId(null);
+    setForm(emptyForm);
+  }
+
+  function handleChange(e) {
+    const { name, value } = e.target;
+    setForm((c) => ({ ...c, [name]: value }));
+  }
+
+  function handleImageUploaded(url) {
+    setForm((c) => ({ ...c, image: url }));
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
     setSaving(true);
     setError('');
     setSuccess('');
-
-    const payload = {
-      name: form.name,
-      price: form.price,
-      description: form.description,
-      image: form.image,
-    };
     try {
       if (editingId) {
-        const data = await updateProduct(editingId, payload);
-        setProducts((current) =>
-          current.map((product) => (product.id === editingId ? data.product : product))
-        );
-        setSuccess('Product updated successfully.');
+        const data = await updateProduct(editingId, form);
+        setProducts((c) => c.map((p) => (p.id === editingId ? data.product : p)));
+        setSuccess('Product updated successfully');
       } else {
-        const data = await createProduct(payload);
-        setProducts((current) => [...current, data.product].sort((a, b) => a.id - b.id));
-        setSuccess('Product created successfully.');
+        const data = await createProduct(form);
+        setProducts((c) => [...c, data.product].sort((a, b) => a.id - b.id));
+        setSuccess('Product created successfully');
       }
-      resetForm();
-    } catch (err) {
-      setError(err?.message || 'Failed to save product');
+      closeForm();
+    } catch (e) {
+      setError(e?.message || 'Failed to save product');
     } finally {
       setSaving(false);
     }
   }
 
   async function handleDelete(productId) {
-    const confirmed = window.confirm('Delete this product?');
-    if (!confirmed) return;
-
     setError('');
-    setSuccess('');
     try {
       await deleteProduct(productId);
-      setProducts((current) => current.filter((product) => product.id !== productId));
-      if (editingId === productId) resetForm();
-      setSuccess('Product deleted successfully.');
-    } catch (err) {
-      setError(err?.message || 'Failed to delete product');
+      setProducts((c) => c.filter((p) => p.id !== productId));
+      setSuccess('Product deleted');
+      setDeleteConfirm(null);
+      if (editingId === productId) closeForm();
+    } catch (e) {
+      setError(e?.message || 'Failed to delete');
     }
   }
+
+  // Filtered products
+  const filtered = useMemo(() => {
+    if (!searchQ.trim()) return products;
+    const q = searchQ.toLowerCase();
+    return products.filter(
+      (p) => p.name.toLowerCase().includes(q) || (p.description || '').toLowerCase().includes(q)
+    );
+  }, [products, searchQ]);
+
+  // Mock metric data
+  const metrics = [
+    { label: 'Total Revenue',   value: '$24,580', delta: 12.4, color: '#10b981', prefix: '', icon: '◈', sparkData: [30,45,35,60,52,75,68,82,70,90,85,95] },
+    { label: 'Total Orders',    value: '1,284',   delta: 8.1,  color: '#6366f1', prefix: '', icon: '◳', sparkData: [20,35,28,45,38,55,48,62,55,70,65,75] },
+    { label: 'Products Listed', value: products.length, delta: 0, color: '#f59e0b', prefix: '', icon: '◫', sparkData: [10,10,12,12,14,14,14,16,16,18,18,products.length] },
+    { label: 'Avg Order Value', value: '$19.14',  delta: -2.3, color: '#ef4444', prefix: '', icon: '◎', sparkData: [22,19,24,21,18,20,17,19,21,18,20,19] },
+  ];
 
   if (blocked) {
     return (
       <div className="admin-blocked">
+        <div className="blocked-icon">⛔</div>
         <h2>Access Denied</h2>
-        <p>You are not authorized to access the Admin Page.</p>
-        <p>Redirecting…</p>
+        <p>You don't have permission to view this page.</p>
+        <p className="blocked-redirect">Redirecting to home…</p>
       </div>
     );
   }
 
   return (
-    <div className="admin-page">
-      <div className="admin-header">
-        <div>
-          <p className="admin-eyebrow">Admin</p>
-          <h1>Manage Products</h1>
-          <p className="admin-subtitle">
-            Create, edit, and delete products from one place.
-          </p>
+    <div className={`admin-shell ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
+
+      {/* ── SIDEBAR ─────────────────────────────────────────────── */}
+      <aside className="admin-sidebar">
+        <div className="sidebar-brand">
+          <div className="brand-logo">E</div>
+          {sidebarOpen && <span className="brand-name">E-Shop</span>}
         </div>
-      </div>
 
-      <div className="admin-layout">
-        {/* ── Form panel ──────────────────────────────────────────────── */}
-        <section className="admin-panel">
-          <h2>{editingId ? 'Edit Product' : 'Add Product'}</h2>
-          <form className="admin-form" onSubmit={handleSubmit}>
-            <label>
-              Name
-              <input
-                name="name"
-                value={form.name}
-                onChange={handleChange}
-                placeholder="Product name"
-                required
-              />
-            </label>
-
-            <label>
-              Price
-              <input
-                name="price"
-                type="number"
-                min="0"
-                step="0.01"
-                value={form.price}
-                onChange={handleChange}
-                placeholder="99.99"
-                required
-              />
-            </label>
-
-            <label>
-              Description
-              <textarea
-                name="description"
-                value={form.description}
-                onChange={handleChange}
-                placeholder="Short product description"
-                rows="4"
-              />
-            </label>
-
-            {/* ── Image section ──────────────────────────────────────── */}
-            <div className="image-field">
-              <div className="image-mode-tabs">
-                <button
-                  type="button"
-                  className={`mode-tab ${imageMode === 'upload' ? 'active' : ''}`}
-                  onClick={() => setImageMode('upload')}
-                >
-                  📁 Upload file
-                </button>
-                <button
-                  type="button"
-                  className={`mode-tab ${imageMode === 'url' ? 'active' : ''}`}
-                  onClick={() => setImageMode('url')}
-                >
-                  🔗 Paste URL
-                </button>
-              </div>
-
-              {imageMode === 'upload' ? (
-                <ImageUploader
-                  currentUrl={form.image}
-                  onUploaded={handleImageUploaded}
-                />
-              ) : (
-                <label>
-                  Image URL
-                  <input
-                    name="image"
-                    value={form.image}
-                    onChange={handleChange}
-                    placeholder="https://example.com/image.jpg"
-                  />
-                </label>
-              )}
-
-              {/* Always show a small current-image indicator */}
-              {form.image && (
-                <div className="current-image-preview">
-                  <img src={form.image} alt="Current product" />
-                  <span>Current image</span>
-                </div>
-              )}
-            </div>
-
-            <div className="admin-actions">
-              <button type="submit" disabled={saving}>
-                {saving ? 'Saving…' : editingId ? 'Update Product' : 'Create Product'}
-              </button>
-              {editingId && (
-                <button type="button" className="secondary-button" onClick={resetForm}>
-                  Cancel Edit
-                </button>
-              )}
-            </div>
-          </form>
-
-          {error && <p className="status-message error">{error}</p>}
-          {success && <p className="status-message success">{success}</p>}
-        </section>
-
-        {/* ── Product table ────────────────────────────────────────────── */}
-        <section className="admin-panel">
-          <div className="product-list-header">
-            <h2>Product Inventory</h2>
-            <button type="button" className="secondary-button" onClick={loadProducts}>
-              Refresh
+        <nav className="sidebar-nav">
+          {NAV_ITEMS.map((item) => (
+            <button
+              key={item.id}
+              className={`nav-item ${activeNav === item.id ? 'active' : ''}`}
+              onClick={() => {
+                setActiveNav(item.id);
+                if (item.id !== 'products') setShowForm(false);
+              }}
+              title={!sidebarOpen ? item.label : ''}
+            >
+              <span className="nav-icon">{item.icon}</span>
+              {sidebarOpen && <span className="nav-label">{item.label}</span>}
+              {sidebarOpen && activeNav === item.id && <span className="nav-pip" />}
             </button>
-          </div>
+          ))}
+        </nav>
 
-          {loading ? (
-            <p>Loading products…</p>
-          ) : products.length === 0 ? (
-            <p>No products found.</p>
-          ) : (
-            <div className="admin-table-wrapper">
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Image</th>
-                    <th>Name</th>
-                    <th>Price</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {products.map((product) => (
-                    <tr key={product.id}>
-                      <td>{product.id}</td>
-                      <td>
-                        {product.image ? (
-                          <img
-                            src={product.image}
-                            alt={product.name}
-                            className="table-thumb"
-                          />
-                        ) : (
-                          <span className="no-thumb">—</span>
-                        )}
-                      </td>
-                      <td>{product.name}</td>
-                      <td>${Number(product.price).toFixed(2)}</td>
-                      <td className="row-actions">
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          onClick={() => startEdit(product)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          className="danger-button"
-                          onClick={() => handleDelete(product.id)}
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        <button className="sidebar-toggle" onClick={() => setSidebarOpen((o) => !o)}>
+          {sidebarOpen ? '◂' : '▸'}
+        </button>
+
+        <div className="sidebar-user">
+          <div className="user-avatar">{user?.username?.[0]?.toUpperCase()}</div>
+          {sidebarOpen && (
+            <div className="user-info">
+              <span className="user-name">{user?.username}</span>
+              <span className="user-role">Administrator</span>
             </div>
           )}
-        </section>
-      </div>
+        </div>
+      </aside>
+
+      {/* ── MAIN CONTENT ────────────────────────────────────────── */}
+      <main className="admin-main">
+
+        {/* Top bar */}
+        <header className="admin-topbar">
+          <div className="topbar-left">
+            <h1 className="topbar-title">
+              {activeNav === 'overview' && 'Dashboard'}
+              {activeNav === 'products' && 'Products'}
+              {activeNav === 'orders' && 'Orders'}
+              {activeNav === 'customers' && 'Customers'}
+              {activeNav === 'analytics' && 'Analytics'}
+              {activeNav === 'settings' && 'Settings'}
+            </h1>
+            <span className="topbar-date">
+              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+            </span>
+          </div>
+          <div className="topbar-right">
+            <button className="topbar-btn" onClick={() => navigate('/')} title="View store">
+              ↗ View Store
+            </button>
+            {activeNav === 'products' && (
+              <button className="topbar-btn primary" onClick={openCreateForm}>
+                + Add Product
+              </button>
+            )}
+          </div>
+        </header>
+
+        {/* Toast */}
+        {(success || error) && (
+          <div className={`admin-toast ${error ? 'toast-error' : 'toast-success'}`}>
+            <span>{error ? '⚠ ' : '✓ '}{error || success}</span>
+            <button onClick={() => { setError(''); setSuccess(''); }}>✕</button>
+          </div>
+        )}
+
+        {/* ── OVERVIEW TAB ────────────────────────────────────── */}
+        {activeNav === 'overview' && (
+          <div className="tab-content">
+            {/* Metric cards */}
+            <div className="metrics-grid">
+              {metrics.map((m) => <MetricCard key={m.label} {...m} />)}
+            </div>
+
+            {/* Quick actions + recent products */}
+            <div className="overview-grid">
+              <section className="overview-card">
+                <div className="card-header">
+                  <h2>Recent Products</h2>
+                  <button className="text-btn" onClick={() => setActiveNav('products')}>
+                    View all →
+                  </button>
+                </div>
+                {loading ? (
+                  <div className="mini-skeleton-list">
+                    {[1,2,3].map(i => <div key={i} className="mini-skeleton-row" />)}
+                  </div>
+                ) : (
+                  <ul className="recent-products-list">
+                    {products.slice(-5).reverse().map((p) => (
+                      <li key={p.id} className="recent-product-item" onClick={() => startEdit(p)}>
+                        <div className="recent-product-img">
+                          {p.image
+                            ? <img src={p.image} alt={p.name} />
+                            : <span>📦</span>
+                          }
+                        </div>
+                        <div className="recent-product-info">
+                          <span className="recent-product-name">{p.name}</span>
+                          <span className="recent-product-desc">
+                            {p.description ? p.description.slice(0, 50) + (p.description.length > 50 ? '…' : '') : 'No description'}
+                          </span>
+                        </div>
+                        <span className="recent-product-price">${Number(p.price).toFixed(2)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+
+              <section className="overview-card">
+                <div className="card-header">
+                  <h2>Quick Actions</h2>
+                </div>
+                <div className="quick-actions">
+                  {[
+                    { icon: '＋', label: 'Add Product', desc: 'Create a new listing', action: () => { setActiveNav('products'); openCreateForm(); } },
+                    { icon: '↻', label: 'Sync Inventory', desc: 'Refresh product data', action: loadProducts },
+                    { icon: '↗', label: 'Visit Store', desc: 'See the live storefront', action: () => navigate('/') },
+                    { icon: '◈', label: 'View Analytics', desc: 'Revenue & traffic', action: () => setActiveNav('analytics') },
+                  ].map((qa) => (
+                    <button key={qa.label} className="quick-action-item" onClick={qa.action}>
+                      <span className="qa-icon">{qa.icon}</span>
+                      <div className="qa-text">
+                        <span className="qa-label">{qa.label}</span>
+                        <span className="qa-desc">{qa.desc}</span>
+                      </div>
+                      <span className="qa-arrow">→</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            </div>
+          </div>
+        )}
+
+        {/* ── PRODUCTS TAB ────────────────────────────────────── */}
+        {activeNav === 'products' && (
+          <div className="tab-content">
+            <div className="products-layout">
+
+              {/* Product table */}
+              <section className="products-table-section">
+                <div className="table-toolbar">
+                  <div className="table-search">
+                    <span className="search-icon-sm">⌕</span>
+                    <input
+                      type="text"
+                      placeholder="Search products…"
+                      value={searchQ}
+                      onChange={(e) => setSearchQ(e.target.value)}
+                      className="table-search-input"
+                    />
+                    {searchQ && <button className="search-clear-sm" onClick={() => setSearchQ('')}>✕</button>}
+                  </div>
+                  <span className="table-count">{filtered.length} items</span>
+                </div>
+
+                {loading ? (
+                  <div className="table-skeleton">
+                    {[1,2,3,4].map(i => <div key={i} className="table-skeleton-row" />)}
+                  </div>
+                ) : filtered.length === 0 ? (
+                  <div className="table-empty">
+                    <span>📦</span>
+                    <p>{searchQ ? 'No products match your search.' : 'No products yet.'}</p>
+                    {!searchQ && <button className="topbar-btn primary" onClick={openCreateForm}>Add your first product</button>}
+                  </div>
+                ) : (
+                  <div className="admin-table-wrap">
+                    <table className="admin-table">
+                      <thead>
+                        <tr>
+                          <th>Product</th>
+                          <th>Price</th>
+                          <th>Status</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filtered.map((p) => (
+                          <tr key={p.id} className={editingId === p.id ? 'row-editing' : ''}>
+                            <td>
+                              <div className="product-cell">
+                                <div className="product-thumb">
+                                  {p.image
+                                    ? <img src={p.image} alt={p.name} />
+                                    : <span>📦</span>
+                                  }
+                                </div>
+                                <div className="product-cell-info">
+                                  <span className="product-cell-name">{p.name}</span>
+                                  <span className="product-cell-desc">
+                                    {p.description
+                                      ? p.description.slice(0, 60) + (p.description.length > 60 ? '…' : '')
+                                      : <em>No description</em>
+                                    }
+                                  </span>
+                                </div>
+                              </div>
+                            </td>
+                            <td>
+                              <span className="price-badge">${Number(p.price).toFixed(2)}</span>
+                            </td>
+                            <td>
+                              <span className="status-badge active">Active</span>
+                            </td>
+                            <td>
+                              <div className="row-actions">
+                                <button className="action-btn edit" onClick={() => startEdit(p)}>
+                                  Edit
+                                </button>
+                                <button
+                                  className="action-btn delete"
+                                  onClick={() => setDeleteConfirm(p)}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
+
+              {/* Form panel — slides in from right */}
+              {showForm && (
+                <aside className="product-form-panel">
+                  <div className="form-panel-header">
+                    <h2>{editingId ? 'Edit Product' : 'New Product'}</h2>
+                    <button className="form-close-btn" onClick={closeForm}>✕</button>
+                  </div>
+
+                  <form onSubmit={handleSubmit} className="product-form">
+                    <div className="form-field">
+                      <label>Product Name *</label>
+                      <input
+                        name="name"
+                        value={form.name}
+                        onChange={handleChange}
+                        placeholder="e.g. Wireless Headphones Pro"
+                        required
+                      />
+                    </div>
+
+                    <div className="form-field">
+                      <label>Price (USD) *</label>
+                      <div className="price-input-wrap">
+                        <span className="price-symbol">$</span>
+                        <input
+                          name="price"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={form.price}
+                          onChange={handleChange}
+                          placeholder="0.00"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="form-field">
+                      <label>Description</label>
+                      <textarea
+                        name="description"
+                        value={form.description}
+                        onChange={handleChange}
+                        placeholder="Describe your product…"
+                        rows="4"
+                      />
+                    </div>
+
+                    <div className="form-field">
+                      <label>Product Image</label>
+                      <div className="image-mode-tabs">
+                        <button
+                          type="button"
+                          className={`mode-tab ${imageMode === 'upload' ? 'active' : ''}`}
+                          onClick={() => setImageMode('upload')}
+                        >Upload file</button>
+                        <button
+                          type="button"
+                          className={`mode-tab ${imageMode === 'url' ? 'active' : ''}`}
+                          onClick={() => setImageMode('url')}
+                        >Paste URL</button>
+                      </div>
+
+                      {imageMode === 'upload' ? (
+                        <ImageUploader currentUrl={form.image} onUploaded={handleImageUploaded} />
+                      ) : (
+                        <input
+                          name="image"
+                          value={form.image}
+                          onChange={handleChange}
+                          placeholder="https://example.com/image.jpg"
+                        />
+                      )}
+
+                      {form.image && (
+                        <div className="image-preview-strip">
+                          <img src={form.image} alt="Preview" />
+                          <span>Preview</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {error && <div className="form-error">⚠ {error}</div>}
+
+                    <div className="form-actions">
+                      <button type="button" className="btn-secondary" onClick={closeForm}>
+                        Cancel
+                      </button>
+                      <button type="submit" className="btn-primary" disabled={saving}>
+                        {saving ? <span className="btn-spinner" /> : null}
+                        {saving ? 'Saving…' : editingId ? 'Update Product' : 'Create Product'}
+                      </button>
+                    </div>
+                  </form>
+                </aside>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── PLACEHOLDER TABS ────────────────────────────────── */}
+        {['orders', 'customers', 'analytics', 'settings'].includes(activeNav) && (
+          <div className="tab-content">
+            <div className="placeholder-tab">
+              <div className="placeholder-icon">
+                {activeNav === 'orders' && '◳'}
+                {activeNav === 'customers' && '◎'}
+                {activeNav === 'analytics' && '◈'}
+                {activeNav === 'settings' && '◉'}
+              </div>
+              <h2>
+                {activeNav.charAt(0).toUpperCase() + activeNav.slice(1)}
+              </h2>
+              <p>This section is coming soon. Stay tuned for updates.</p>
+              <button className="topbar-btn" onClick={() => setActiveNav('overview')}>
+                ← Back to Overview
+              </button>
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* ── DELETE CONFIRM MODAL ────────────────────────────────── */}
+      {deleteConfirm && (
+        <div className="modal-backdrop" onClick={() => setDeleteConfirm(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-icon">🗑</div>
+            <h3>Delete product?</h3>
+            <p>
+              "<strong>{deleteConfirm.name}</strong>" will be permanently removed.
+              This action cannot be undone.
+            </p>
+            <div className="modal-actions">
+              <button className="btn-secondary" onClick={() => setDeleteConfirm(null)}>
+                Cancel
+              </button>
+              <button className="btn-danger" onClick={() => handleDelete(deleteConfirm.id)}>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
