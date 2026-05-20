@@ -74,6 +74,11 @@ export default function ProductCard({
           <p className="product-card-desc">{product.description}</p>
         )}
 
+        <div className="product-card-rating" aria-label={`${product.rating || 4.5} out of 5 stars`}>
+          <span className="rating-stars" aria-hidden="true">★★★★★</span>
+          <span className="rating-value">{Number(product.rating || 4.5).toFixed(1)}</span>
+        </div>
+
         <button
           className={`add-to-cart-btn ${added ? 'added' : ''}`}
           onClick={handleAddToCart}

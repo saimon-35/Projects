@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BrowserRouter, Routes, Route, Link, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { CartProvider } from './context/CartContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import ProductsPage from './pages/ProductsPage';
@@ -11,17 +11,26 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ProfilePage from './pages/ProfilePage';
 import CheckoutPage from './pages/CheckoutPage';
+import SearchResultsPage from './pages/SearchResultsPage';
+import { PRODUCT_DEPARTMENTS } from './searchConfig';
 import './App.css';
 
 function Header() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchParams] = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
+  const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || 'all');
+
+
 
   const handleSearch = (event) => {
     event.preventDefault();
     const query = searchQuery.trim();
-    navigate(query ? `/?search=${encodeURIComponent(query)}` : '/');
+    const params = new URLSearchParams();
+    if (query) params.set('q', query);
+    params.set('category', selectedCategory || 'all');
+    navigate(`/search?${params.toString()}`);
   };
 
   return (
@@ -32,6 +41,17 @@ function Header() {
       </Link>
 
       <form className="header-search" onSubmit={handleSearch} role="search">
+        <select
+          value={selectedCategory}
+          onChange={(event) => setSelectedCategory(event.target.value)}
+          aria-label="Select department"
+        >
+          {PRODUCT_DEPARTMENTS.map((department) => (
+            <option key={department.value} value={department.value}>
+              {department.label}
+            </option>
+          ))}
+        </select>
         <input
           type="search"
           value={searchQuery}
@@ -87,6 +107,7 @@ export default function App() {
 
             <Routes>
               <Route path="/" element={<ProductsPage />} />
+              <Route path="/search" element={<SearchResultsPage />} />
               <Route path="/cart" element={<CartPage />} />
               <Route path="/product/:id" element={<ProductDetailPage />} />
               <Route path="/admin" element={<AdminPage />} />

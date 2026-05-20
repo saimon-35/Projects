@@ -45,6 +45,25 @@ export function getProducts(searchParams = {}) {
   return request(url);
 }
 
+export function searchProducts(params = {}) {
+  const {
+    q = '',
+    category = 'all',
+    sort = 'relevance',
+    page = 1,
+    perPage = 12,
+  } = params;
+
+  const queryParams = new URLSearchParams();
+  if (q) queryParams.set('q', q);
+  queryParams.set('category', category || 'all');
+  queryParams.set('sort', sort || 'relevance');
+  queryParams.set('page', String(page || 1));
+  queryParams.set('per_page', String(perPage || 12));
+
+  return request(`/api/products/search?${queryParams.toString()}`);
+}
+
 export function getProduct(id) {
   return request(`/api/products/${id}`);
 }

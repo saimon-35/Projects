@@ -1,9 +1,67 @@
+from math import ceil
 from flask import Blueprint, jsonify, request
-from data import PRODUCTS
 from model import Product, db
 from auth import token_required, admin_required
 
 products_bp = Blueprint('products', __name__)
+
+DEPARTMENTS = {
+    "audio": ("audio", "headphone", "speaker", "earbud", "sound", "bluetooth"),
+    "cables": ("cable", "usb", "charger", "adapter", "wire"),
+    "keyboards": ("keyboard", "switch", "keycap", "mechanical"),
+    "accessories": ("accessory", "case", "stand", "mouse", "pad", "hub"),
+    "electronics": ("electronic", "phone", "iphone", "laptop", "tablet", "device", "tech"),
+}
+
+SORT_OPTIONS = {
+    "relevance",
+    "price_asc",
+    "price_desc",
+    "newest",
+    "highest_rated",
+}
+
+
+def product_department(product):
+    haystack = f"{product.name or ''} {product.description or ''}".lower()
+    for department, keywords in DEPARTMENTS.items():
+        if any(keyword in haystack for keyword in keywords):
+            return department
+    return "accessories"
+
+
+def product_payload(product):
+    payload = product.to_dict()
+    payload["category"] = product_department(product)
+    payload["rating"] = round(4.1 + ((product.id % 9) / 10), 1)
+    return payload
+
+
+def apply_category_filter(query, category):
+    if not category or category == "all":
+        return query
+
+    keywords = DEPARTMENTS.get(category)
+    if not keywords:
+        return query.filter(db.false())
+
+    conditions = []
+    for keyword in keywords:
+        like = f"%{keyword}%"
+        conditions.extend((Product.name.ilike(like), Product.description.ilike(like)))
+    return query.filter(db.or_(*conditions))
+
+
+def apply_search_sort(query, sort):
+    if sort == "price_asc":
+        return query.order_by(Product.price.asc(), Product.id.asc())
+    if sort == "price_desc":
+        return query.order_by(Product.price.desc(), Product.id.asc())
+    if sort == "newest":
+        return query.order_by(Product.id.desc())
+    if sort == "highest_rated":
+        return query.order_by(Product.id.desc())
+    return query.order_by(Product.id.asc())
 
 def validate_product_payload(data, *, partial=False):
     if not isinstance(data, dict):
@@ -85,7 +143,51 @@ def list_products():
     
     # Execute query
     products = query.order_by(Product.id).all()
-    return jsonify({"products": [product.to_dict() for product in products]}), 200
+    return jsonify({"products": [product_payload(product) for product in products]}), 200
+
+
+@products_bp.route('/api/products/search', methods=['GET'])
+def search_products():
+    search_query = (request.args.get('q') or '').strip()
+    category = (request.args.get('category') or 'all').strip().lower()
+    sort = (request.args.get('sort') or 'relevance').strip().lower()
+    page = max(request.args.get('page', default=1, type=int) or 1, 1)
+    per_page = min(max(request.args.get('per_page', default=12, type=int) or 12, 1), 48)
+
+    if sort not in SORT_OPTIONS:
+        sort = "relevance"
+
+    query = Product.query
+
+    if search_query:
+        like = f"%{search_query}%"
+        query = query.filter(
+            db.or_(
+                Product.name.ilike(like),
+                Product.description.ilike(like)
+            )
+        )
+
+    query = apply_category_filter(query, category)
+    total_results = query.count()
+
+    total_pages = max(ceil(total_results / per_page), 1)
+    current_page = min(page, total_pages)
+    products = (
+        apply_search_sort(query, sort)
+        .offset((current_page - 1) * per_page)
+        .limit(per_page)
+        .all()
+    )
+
+    return jsonify({
+        "products": [product_payload(product) for product in products],
+        "totalResults": total_results,
+        "currentPage": current_page,
+        "totalPages": total_pages,
+        "category": category,
+        "sort": sort,
+    }), 200
 
 @products_bp.route('/api/products', methods=['POST'])
 @admin_required

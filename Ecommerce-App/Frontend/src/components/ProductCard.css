@@ -176,6 +176,26 @@
   flex: 1;
 }
 
+.product-card-rating {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 20px;
+}
+
+.rating-stars {
+  color: #f59e0b;
+  font-size: 0.85rem;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.rating-value {
+  color: #5f6b7a;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
 /* ── Add to cart button ─────────────────────────────────────── */
 .add-to-cart-btn {
   margin-top: auto;
