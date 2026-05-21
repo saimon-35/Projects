@@ -88,6 +88,10 @@ export function deleteProduct(id) {
   });
 }
 
+export function getAdminDashboard() {
+  return request('/api/admin/dashboard');
+}
+
 export function getProfile() {
   return request('/api/profile');
 }

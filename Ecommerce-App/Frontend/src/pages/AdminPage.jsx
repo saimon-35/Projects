@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   createProduct,
   deleteProduct,
+  getAdminDashboard,
   getProducts,
   updateProduct,
 } from '../api.js';
@@ -20,6 +21,15 @@ const NAV_ITEMS = [
   { id: 'analytics', icon: '◈', label: 'Analytics' },
   { id: 'settings',  icon: '◉', label: 'Settings' },
 ];
+
+const money = (value) => `$${Number(value || 0).toLocaleString(undefined, {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})}`;
+
+const shortDate = (value) => value
+  ? new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  : 'Never';
 
 // Tiny sparkline SVG
 function Sparkline({ values = [], color = '#10b981', height = 36 }) {
@@ -74,6 +84,8 @@ function MetricCard({ label, value, delta, color, sparkData, icon, prefix = '' }
 export default function AdminPage() {
   const [activeNav, setActiveNav] = useState('overview');
   const [products, setProducts] = useState([]);
+  const [dashboard, setDashboard] = useState(null);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
   const [showForm, setShowForm] = useState(false);
@@ -84,6 +96,8 @@ export default function AdminPage() {
   const [blocked, setBlocked] = useState(false);
   const [imageMode, setImageMode] = useState('upload');
   const [searchQ, setSearchQ] = useState('');
+  const [orderSearchQ, setOrderSearchQ] = useState('');
+  const [customerSearchQ, setCustomerSearchQ] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
@@ -97,7 +111,7 @@ export default function AdminPage() {
       const t = setTimeout(() => navigate('/', { replace: true }), 3000);
       return () => clearTimeout(t);
     }
-    loadProducts();
+    loadAdminData();
   }, [user, navigate]);
 
   // Auto-clear success message
@@ -117,6 +131,25 @@ export default function AdminPage() {
       setError(e?.message || 'Failed to load products');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadAdminData() {
+    setLoading(true);
+    setDashboardLoading(true);
+    setError('');
+    try {
+      const [productsData, dashboardData] = await Promise.all([
+        getProducts(),
+        getAdminDashboard(),
+      ]);
+      setProducts(Array.isArray(productsData.products) ? productsData.products : []);
+      setDashboard(dashboardData);
+    } catch (e) {
+      setError(e?.message || 'Failed to load admin dashboard');
+    } finally {
+      setLoading(false);
+      setDashboardLoading(false);
     }
   }
 
@@ -176,6 +209,7 @@ export default function AdminPage() {
         setProducts((c) => [...c, data.product].sort((a, b) => a.id - b.id));
         setSuccess('Product created successfully');
       }
+      getAdminDashboard().then(setDashboard).catch(() => {});
       closeForm();
     } catch (e) {
       setError(e?.message || 'Failed to save product');
@@ -191,6 +225,7 @@ export default function AdminPage() {
       setProducts((c) => c.filter((p) => p.id !== productId));
       setSuccess('Product deleted');
       setDeleteConfirm(null);
+      getAdminDashboard().then(setDashboard).catch(() => {});
       if (editingId === productId) closeForm();
     } catch (e) {
       setError(e?.message || 'Failed to delete');
@@ -206,13 +241,47 @@ export default function AdminPage() {
     );
   }, [products, searchQ]);
 
-  // Mock metric data
+  // Live backend-driven dashboard data
+  const orders = dashboard?.orders || [];
+  const customers = dashboard?.customers || [];
+  const analytics = dashboard?.analytics || {};
+  const summary = dashboard?.summary || {};
+
+  const filteredOrders = useMemo(() => {
+    const q = orderSearchQ.trim().toLowerCase();
+    if (!q) return orders;
+    return orders.filter((order) => (
+      String(order.id).includes(q)
+      || order.customer?.username?.toLowerCase().includes(q)
+      || order.customer?.email?.toLowerCase().includes(q)
+      || order.status?.toLowerCase().includes(q)
+    ));
+  }, [orders, orderSearchQ]);
+
+  const filteredCustomers = useMemo(() => {
+    const q = customerSearchQ.trim().toLowerCase();
+    if (!q) return customers;
+    return customers.filter((customer) => (
+      customer.username?.toLowerCase().includes(q)
+      || customer.email?.toLowerCase().includes(q)
+    ));
+  }, [customers, customerSearchQ]);
+
   const metrics = [
+    { label: 'Total Revenue', value: money(summary.totalRevenue), delta: summary.revenueDelta || 0, color: '#10b981', prefix: '', icon: 'Revenue', sparkData: analytics.revenueByDay || [0,0,0,0,0,0,0] },
+    { label: 'Total Orders', value: summary.totalOrders || 0, delta: summary.ordersDelta || 0, color: '#6366f1', prefix: '', icon: 'Orders', sparkData: analytics.ordersByDay || [0,0,0,0,0,0,0] },
+    { label: 'Products Listed', value: products.length, delta: 0, color: '#f59e0b', prefix: '', icon: 'Items', sparkData: [0,0,0,0,0,0,products.length] },
+    { label: 'Avg Order Value', value: money(summary.avgOrderValue), delta: 0, color: '#ef4444', prefix: '', icon: 'AOV', sparkData: analytics.revenueByDay || [0,0,0,0,0,0,0] },
+  ];
+
+  /*
+  const unusedLegacyMetrics = [
     { label: 'Total Revenue',   value: '$24,580', delta: 12.4, color: '#10b981', prefix: '', icon: '◈', sparkData: [30,45,35,60,52,75,68,82,70,90,85,95] },
     { label: 'Total Orders',    value: '1,284',   delta: 8.1,  color: '#6366f1', prefix: '', icon: '◳', sparkData: [20,35,28,45,38,55,48,62,55,70,65,75] },
     { label: 'Products Listed', value: products.length, delta: 0, color: '#f59e0b', prefix: '', icon: '◫', sparkData: [10,10,12,12,14,14,14,16,16,18,18,products.length] },
     { label: 'Avg Order Value', value: '$19.14',  delta: -2.3, color: '#ef4444', prefix: '', icon: '◎', sparkData: [22,19,24,21,18,20,17,19,21,18,20,19] },
   ];
+  */
 
   if (blocked) {
     return (
@@ -357,7 +426,7 @@ export default function AdminPage() {
                 <div className="quick-actions">
                   {[
                     { icon: '＋', label: 'Add Product', desc: 'Create a new listing', action: () => { setActiveNav('products'); openCreateForm(); } },
-                    { icon: '↻', label: 'Sync Inventory', desc: 'Refresh product data', action: loadProducts },
+                    { icon: '↻', label: 'Sync Inventory', desc: 'Refresh product data', action: loadAdminData },
                     { icon: '↗', label: 'Visit Store', desc: 'See the live storefront', action: () => navigate('/') },
                     { icon: '◈', label: 'View Analytics', desc: 'Revenue & traffic', action: () => setActiveNav('analytics') },
                   ].map((qa) => (
@@ -569,7 +638,116 @@ export default function AdminPage() {
         )}
 
         {/* ── PLACEHOLDER TABS ────────────────────────────────── */}
-        {['orders', 'customers', 'analytics', 'settings'].includes(activeNav) && (
+        {activeNav === 'orders' && (
+          <div className="tab-content">
+            <section className="products-table-section">
+              <div className="table-toolbar">
+                <div className="table-search">
+                  <input type="text" placeholder="Search orders..." value={orderSearchQ} onChange={(e) => setOrderSearchQ(e.target.value)} className="table-search-input" />
+                </div>
+                <span className="table-count">{filteredOrders.length} orders</span>
+              </div>
+              {dashboardLoading ? (
+                <div className="table-skeleton">{[1,2,3].map(i => <div key={i} className="table-skeleton-row" />)}</div>
+              ) : filteredOrders.length === 0 ? (
+                <div className="table-empty"><span>Orders</span><p>No orders found.</p></div>
+              ) : (
+                <div className="admin-table-wrap">
+                  <table className="admin-table">
+                    <thead><tr><th>Order</th><th>Customer</th><th>Items</th><th>Total</th><th>Status</th><th>Date</th></tr></thead>
+                    <tbody>{filteredOrders.map((order) => (
+                      <tr key={order.id}>
+                        <td><span className="price-badge">#{order.id}</span></td>
+                        <td><div className="product-cell-info"><span className="product-cell-name">{order.customer?.username || 'Unknown'}</span><span className="product-cell-desc">{order.customer?.email || 'No email'}</span></div></td>
+                        <td>{order.item_count}</td>
+                        <td><span className="price-badge">{money(order.total_amount)}</span></td>
+                        <td><span className="status-badge active">{order.status}</span></td>
+                        <td>{shortDate(order.created_at)}</td>
+                      </tr>
+                    ))}</tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          </div>
+        )}
+
+        {activeNav === 'customers' && (
+          <div className="tab-content">
+            <section className="products-table-section">
+              <div className="table-toolbar">
+                <div className="table-search">                  
+                  <input type="text" placeholder="Search customers..." value={customerSearchQ} onChange={(e) => setCustomerSearchQ(e.target.value)} className="table-search-input" />
+                </div>
+                <span className="table-count">{filteredCustomers.length} customers</span>
+              </div>
+              {dashboardLoading ? (
+                <div className="table-skeleton">{[1,2,3].map(i => <div key={i} className="table-skeleton-row" />)}</div>
+              ) : filteredCustomers.length === 0 ? (
+                <div className="table-empty"><span>Customers</span><p>No customers found.</p></div>
+              ) : (
+                <div className="admin-table-wrap">
+                  <table className="admin-table">
+                    <thead><tr><th>Customer</th><th>Role</th><th>Orders</th><th>Total Spent</th><th>Addresses</th><th>Joined</th></tr></thead>
+                    <tbody>{filteredCustomers.map((customer) => (
+                      <tr key={customer.id}>
+                        <td><div className="product-cell-info"><span className="product-cell-name">{customer.username}</span><span className="product-cell-desc">{customer.email}</span></div></td>
+                        <td><span className={`status-badge ${customer.is_admin ? 'warning' : 'active'}`}>{customer.is_admin ? 'Admin' : 'Customer'}</span></td>
+                        <td>{customer.orders_count}</td>
+                        <td><span className="price-badge">{money(customer.total_spent)}</span></td>
+                        <td>{customer.addresses_count}</td>
+                        <td>{shortDate(customer.created_at)}</td>
+                      </tr>
+                    ))}</tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          </div>
+        )}
+
+        {activeNav === 'analytics' && (
+          <div className="tab-content">
+            <div className="metrics-grid">{metrics.map((m) => <MetricCard key={m.label} {...m} />)}</div>
+            <div className="overview-grid">
+              <section className="overview-card">
+                <div className="card-header"><h2>Top Products</h2></div>
+                {(analytics.topProducts || []).length === 0 ? (
+                  <div className="table-empty"><p>No sales data yet.</p></div>
+                ) : (
+                  <ul className="recent-products-list">{analytics.topProducts.map((item) => (
+                    <li key={item.product_id} className="recent-product-item">
+                      <div className="recent-product-img">{item.image ? <img src={item.image} alt={item.name} /> : <span>Item</span>}</div>
+                      <div className="recent-product-info"><span className="recent-product-name">{item.name}</span><span className="recent-product-desc">{item.quantity} sold</span></div>
+                      <span className="recent-product-price">{money(item.revenue)}</span>
+                    </li>
+                  ))}</ul>
+                )}
+              </section>
+              <section className="overview-card">
+                <div className="card-header"><h2>Last 7 Days Revenue</h2></div>
+                <div className="analytics-chart"><Sparkline values={analytics.revenueByDay || []} color="#10b981" height={120} /></div>
+              </section>
+            </div>
+          </div>
+        )}
+
+        {activeNav === 'settings' && (
+          <div className="tab-content">
+            <section className="overview-card settings-panel">
+              <div className="card-header"><h2>Store Settings</h2></div>
+              <div className="settings-grid">
+                <div><span>Store name</span><strong>E-Shop</strong></div>
+                <div><span>Products</span><strong>{products.length}</strong></div>
+                <div><span>Orders</span><strong>{summary.totalOrders || 0}</strong></div>
+                <div><span>Customers</span><strong>{summary.totalCustomers || 0}</strong></div>
+              </div>
+              <p className="settings-note">These values come from the live backend. Editable settings can be added when a store settings model exists.</p>
+            </section>
+          </div>
+        )}
+
+        {false && ['orders', 'customers', 'analytics', 'settings'].includes(activeNav) && (
           <div className="tab-content">
             <div className="placeholder-tab">
               <div className="placeholder-icon">

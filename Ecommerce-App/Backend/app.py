@@ -10,6 +10,7 @@ from routes.auth import auth_bp
 from routes.profile import profile_bp
 from routes.payment import payment_bp
 from routes.upload import upload_bp
+from routes.admin import admin_bp
 from data import PRODUCTS
 from model import Product
 from flask_migrate import Migrate
@@ -49,6 +50,7 @@ def create_app():
     app.register_blueprint(profile_bp)
     app.register_blueprint(payment_bp)
     app.register_blueprint(upload_bp)
+    app.register_blueprint(admin_bp)
 
     with app.app_context():
         os.makedirs(app.instance_path, exist_ok=True)
