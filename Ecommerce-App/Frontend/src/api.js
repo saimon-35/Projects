@@ -178,3 +178,102 @@ export function confirmOrder(paymentIntentId) {
     body: JSON.stringify({ payment_intent_id: paymentIntentId }),
   });
 }
+// ── Delivery Man endpoints ────────────────────────────────────────────────
+
+/** Orders available to be requested (paid, no active task). */
+export function getAvailableOrders() {
+  return request('/api/delivery/available-orders');
+}
+
+/** All tasks belonging to the current delivery man. */
+export function getMyTasks() {
+  return request('/api/delivery/my-tasks');
+}
+
+/** Request to deliver an order. */
+export function requestDeliveryTask(orderId) {
+  return request('/api/delivery/request', {
+    method: 'POST',
+    body: JSON.stringify({ order_id: orderId }),
+  });
+}
+
+/**
+ * Advance task status (delivery man).
+ * @param {number} taskId
+ * @param {'picked_up'|'delivered'} status
+ */
+export function updateDeliveryStatus(taskId, status) {
+  return request(`/api/delivery/tasks/${taskId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+}
+
+// ── Admin delivery endpoints ──────────────────────────────────────────────
+
+/**
+ * All delivery tasks, optionally filtered by status.
+ * @param {string} [status]
+ */
+export function adminGetDeliveryTasks(status = '') {
+  const qs = status ? `?status=${encodeURIComponent(status)}` : '';
+  return request(`/api/admin/delivery/tasks${qs}`);
+}
+
+/** All paid orders with embedded delivery_task. */
+export function adminGetOrdersWithDelivery() {
+  return request('/api/admin/delivery/orders');
+}
+
+/** All users with role == delivery_man. */
+export function adminGetDeliveryMen() {
+  return request('/api/admin/delivery/delivery-men');
+}
+
+/**
+ * Approve a requested task (optionally re-assign delivery man).
+ * @param {number} taskId
+ * @param {number} [deliveryManId]
+ */
+export function adminApproveTask(taskId, deliveryManId) {
+  const body = deliveryManId
+    ? { delivery_man_id: deliveryManId }
+    : {};
+  return request(`/api/admin/delivery/tasks/${taskId}/approve`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+/** Reject a requested (or assigned) task. */
+export function adminRejectTask(taskId) {
+  return request(`/api/admin/delivery/tasks/${taskId}/reject`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+}
+
+/**
+ * Admin directly assigns an order to a delivery man (skips request flow).
+ * @param {number} orderId
+ * @param {number} deliveryManId
+ */
+export function adminAssignTask(orderId, deliveryManId) {
+  return request('/api/admin/delivery/assign', {
+    method: 'POST',
+    body: JSON.stringify({ order_id: orderId, delivery_man_id: deliveryManId }),
+  });
+}
+
+/**
+ * Admin force-sets any valid status on a task.
+ * @param {number} taskId
+ * @param {string} status
+ */
+export function adminOverrideStatus(taskId, status) {
+  return request(`/api/admin/delivery/tasks/${taskId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+}

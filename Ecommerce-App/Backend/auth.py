@@ -9,9 +9,12 @@ from jwt import ExpiredSignatureError, InvalidTokenError
 # Secret key for JWT encoding/decoding
 SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'fallback_secret_key_for_development')
 
-def generate_token(user_id):
-    """Generate a JWT token for a user"""
 
+# ═══════════════════════════════════════════════════════════════
+# JWT CORE
+# ═══════════════════════════════════════════════════════════════
+
+def generate_token(user_id):
     now = datetime.now(timezone.utc)
 
     payload = {
@@ -22,7 +25,6 @@ def generate_token(user_id):
 
     token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
 
-    # PyJWT may return bytes in some versions
     if isinstance(token, bytes):
         token = token.decode("utf-8")
 
@@ -30,8 +32,6 @@ def generate_token(user_id):
 
 
 def decode_token(token):
-    """Decode a JWT token and return the payload"""
-
     if not token:
         return None
 
@@ -43,43 +43,40 @@ def decode_token(token):
             options={"require": ["exp", "iat"]},
         )
 
-        # Validate required fields
         if "user_id" not in payload:
             return None
 
         return payload
 
     except ExpiredSignatureError:
-        return None  # Token expired
+        return None
 
     except InvalidTokenError:
-        return None  # Invalid token
-    
-    
+        return None
+
+
 def get_current_user():
-    """Get the current user from the request authorization header"""
     auth_header = request.headers.get('Authorization')
     if not auth_header:
         return None
-    
+
     try:
-        # Expected format: "Bearer <token>"
         token = auth_header.split(' ')[1]
     except IndexError:
         return None
-    
+
     payload = decode_token(token)
     if not payload:
         return None
-    
-    user_id = payload.get('user_id')
-    if not user_id:
-        return None
-    
-    return User.query.get(user_id)
+
+    return User.query.get(payload.get("user_id"))
+
+
+# ═══════════════════════════════════════════════════════════════
+# BASE AUTH DECORATORS (EXISTING)
+# ═══════════════════════════════════════════════════════════════
 
 def token_required(f):
-    """Decorator to require a valid JWT token for a route"""
     @wraps(f)
     def decorated(*args, **kwargs):
         user = get_current_user()
@@ -88,8 +85,8 @@ def token_required(f):
         return f(*args, **kwargs)
     return decorated
 
+
 def admin_required(f):
-    """Decorator to require admin privileges"""
     @wraps(f)
     def decorated(*args, **kwargs):
         user = get_current_user()
@@ -99,3 +96,58 @@ def admin_required(f):
             return jsonify({'error': 'Admin privileges required'}), 403
         return f(*args, **kwargs)
     return decorated
+
+
+# ═══════════════════════════════════════════════════════════════
+# DELIVERY ROLE DECORATORS (NEW)
+# ═══════════════════════════════════════════════════════════════
+
+def delivery_man_required(f):
+    """Only delivery men can access"""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        user = get_current_user()
+        if not user:
+            return jsonify({"error": "Authentication required"}), 401
+        if user.role != "delivery_man":
+            return jsonify({"error": "Delivery man access required"}), 403
+        return f(*args, **kwargs)
+    return decorated
+
+
+def delivery_or_admin_required(f):
+    """Admin + delivery man allowed"""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        user = get_current_user()
+        if not user:
+            return jsonify({"error": "Authentication required"}), 401
+        if user.role not in ("delivery_man", "admin"):
+            return jsonify({"error": "Access restricted"}), 403
+        return f(*args, **kwargs)
+    return decorated
+
+
+# ═══════════════════════════════════════════════════════════════
+# ROLE HELPERS (FOR REGISTER LOGIC)
+# ═══════════════════════════════════════════════════════════════
+
+ALLOWED_ROLES = {"customer", "delivery_man"}
+
+
+def pick_role(data: dict) -> str:
+    """
+    Validate role during registration.
+    NOTE: admin cannot self-register.
+    """
+    role = data.get("role", "customer")
+
+    if isinstance(role, str):
+        role = role.strip().lower()
+    else:
+        role = "customer"
+
+    if role not in ALLOWED_ROLES:
+        role = "customer"
+
+    return role

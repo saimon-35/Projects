@@ -4,6 +4,11 @@ import bcrypt
 
 db = SQLAlchemy()
 
+
+# ═══════════════════════════════════════════════════════════════
+# PRODUCT
+# ═══════════════════════════════════════════════════════════════
+
 class Product(db.Model):
     __tablename__ = "products"
 
@@ -23,6 +28,10 @@ class Product(db.Model):
         }
 
 
+# ═══════════════════════════════════════════════════════════════
+# USER (UPDATED WITH ROLE SYSTEM)
+# ═══════════════════════════════════════════════════════════════
+
 class User(db.Model):
     __tablename__ = "users"
 
@@ -31,7 +40,35 @@ class User(db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    # OLD FIELD (kept for backward compatibility logic)
     is_admin = db.Column(db.Boolean, default=False)
+
+    # NEW FIELD (IMPORTANT)
+    role = db.Column(
+        db.String(20),
+        nullable=False,
+        default="customer",
+        server_default="customer",
+    )
+
+    # ── Role helpers ─────────────────────────────────────────────
+    @property
+    def is_admin(self):
+        return self.role == "admin"
+
+    @is_admin.setter
+    def is_admin(self, value):
+        if value:
+            self.role = "admin"
+        elif self.role == "admin":
+            self.role = "customer"
+
+    @property
+    def is_delivery_man(self):
+        return self.role == "delivery_man"
+
+    # ── relationships ────────────────────────────────────────────
     addresses = db.relationship(
         "Address",
         backref="user",
@@ -39,6 +76,7 @@ class User(db.Model):
         cascade="all, delete-orphan",
         order_by="desc(Address.is_default), desc(Address.created_at)",
     )
+
     orders = db.relationship(
         "Order",
         backref="user",
@@ -46,6 +84,7 @@ class User(db.Model):
         cascade="all, delete-orphan",
         order_by="desc(Order.created_at)",
     )
+
     wishlist_items = db.relationship(
         "WishlistItem",
         backref="user",
@@ -53,24 +92,36 @@ class User(db.Model):
         cascade="all, delete-orphan",
     )
 
+    # ── auth helpers ─────────────────────────────────────────────
     def set_password(self, password):
-        """Hash and set the user's password"""
         salt = bcrypt.gensalt()
-        self.password_hash = bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+        self.password_hash = bcrypt.hashpw(
+            password.encode("utf-8"),
+            salt
+        ).decode("utf-8")
 
     def check_password(self, password):
-        """Check if the provided password matches the hashed password"""
-        return bcrypt.checkpw(password.encode('utf-8'), self.password_hash.encode('utf-8'))
+        return bcrypt.checkpw(
+            password.encode("utf-8"),
+            self.password_hash.encode("utf-8")
+        )
 
+    # ── output ───────────────────────────────────────────────────
     def to_dict(self):
         return {
             "id": self.id,
             "username": self.username,
             "email": self.email,
             "created_at": self.created_at.isoformat(),
-            "is_admin": self.is_admin
+            "is_admin": self.is_admin,
+            "role": self.role,
+            "is_delivery_man": self.is_delivery_man,
         }
 
+
+# ═══════════════════════════════════════════════════════════════
+# ADDRESS (UNCHANGED)
+# ═══════════════════════════════════════════════════════════════
 
 class Address(db.Model):
     __tablename__ = "addresses"
@@ -104,6 +155,10 @@ class Address(db.Model):
         }
 
 
+# ═══════════════════════════════════════════════════════════════
+# ORDER (UNCHANGED)
+# ═══════════════════════════════════════════════════════════════
+
 class Order(db.Model):
     __tablename__ = "orders"
 
@@ -111,10 +166,13 @@ class Order(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     address_id = db.Column(db.Integer, db.ForeignKey("addresses.id"), nullable=False)
     total_amount = db.Column(db.Float, nullable=False, default=0)
-    # Stripe PaymentIntent ID — used for idempotency and receipt lookup
+
     payment_intent_id = db.Column(db.String(255), nullable=True, unique=True, index=True)
+
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
     shipping_address = db.relationship("Address")
+
     items = db.relationship(
         "OrderItem",
         backref="order",
@@ -134,6 +192,10 @@ class Order(db.Model):
         }
 
 
+# ═══════════════════════════════════════════════════════════════
+# ORDER ITEM (UNCHANGED)
+# ═══════════════════════════════════════════════════════════════
+
 class OrderItem(db.Model):
     __tablename__ = "order_items"
 
@@ -144,6 +206,7 @@ class OrderItem(db.Model):
     product_image = db.Column(db.String(500), nullable=True)
     unit_price = db.Column(db.Float, nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
+
     product = db.relationship("Product")
 
     def to_dict(self):
@@ -158,6 +221,10 @@ class OrderItem(db.Model):
         }
 
 
+# ═══════════════════════════════════════════════════════════════
+# WISHLIST (UNCHANGED)
+# ═══════════════════════════════════════════════════════════════
+
 class WishlistItem(db.Model):
     __tablename__ = "wishlist_items"
 
@@ -165,6 +232,7 @@ class WishlistItem(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     product_id = db.Column(db.Integer, db.ForeignKey("products.id"), nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
     product = db.relationship("Product")
 
     __table_args__ = (
@@ -176,4 +244,65 @@ class WishlistItem(db.Model):
             "id": self.id,
             "created_at": self.created_at.isoformat(),
             "product": self.product.to_dict() if self.product else None,
+        }
+
+
+# ═══════════════════════════════════════════════════════════════
+# NEW: DELIVERY SYSTEM MODEL
+# ═══════════════════════════════════════════════════════════════
+
+class DeliveryTask(db.Model):
+    __tablename__ = "delivery_tasks"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    order_id = db.Column(
+        db.Integer,
+        db.ForeignKey("orders.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    delivery_man_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    status = db.Column(
+        db.String(20),
+        default="requested",
+        nullable=False,
+        index=True,
+    )
+
+    requested_by_delivery_man = db.Column(db.Boolean, default=True, nullable=False)
+
+    requested_at = db.Column(
+        db.DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    assigned_at = db.Column(db.DateTime, nullable=True)
+    picked_up_at = db.Column(db.DateTime, nullable=True)
+    delivered_at = db.Column(db.DateTime, nullable=True)
+    rejected_at = db.Column(db.DateTime, nullable=True)
+
+    # relationships
+    order = db.relationship("Order", backref=db.backref("delivery_task", uselist=False))
+    delivery_man = db.relationship("User", foreign_keys=[delivery_man_id])
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "order_id": self.order_id,
+            "delivery_man_id": self.delivery_man_id,
+            "status": self.status,
+            "requested_at": self.requested_at.isoformat(),
+            "assigned_at": self.assigned_at.isoformat() if self.assigned_at else None,
+            "picked_up_at": self.picked_up_at.isoformat() if self.picked_up_at else None,
+            "delivered_at": self.delivered_at.isoformat() if self.delivered_at else None,
+            "rejected_at": self.rejected_at.isoformat() if self.rejected_at else None,
         }

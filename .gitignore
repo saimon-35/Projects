@@ -1,2 +1,5 @@
 Ecommerce-App/Frontend/.env.development
 Ecommerce-App/Backend/instance/uploads/products/
+Ecommerce-App/Backend/server.err.log
+Ecommerce-App/Backend/server.out.log
+Ecommerce-App/Backend/migrations/versions/66176cbb79a7_baseline_schema.py
