@@ -23,7 +23,7 @@ import ProfilePage from './pages/ProfilePage';
 import CheckoutPage from './pages/CheckoutPage';
 import SearchResultsPage from './pages/SearchResultsPage';
 import DeliveryDashboard from './pages/DeliveryDashboard';
-import AdminDeliveryPanel from './pages/Admindeliverypanel';
+import AdminDeliveryPanel from './pages/AdminDeliveryPanel';
 
 import { PRODUCT_DEPARTMENTS } from './searchConfig';
 
