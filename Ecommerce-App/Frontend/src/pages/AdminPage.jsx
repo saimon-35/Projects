@@ -171,7 +171,7 @@ export default function AdminPage() {
       image: product.image || '',
     });
     setImageMode(
-      product.image && !product.image.startsWith('/static/uploads/') ? 'url' : 'upload'
+      product.image && !product.image.startsWith('https://res.cloudinary.com/') ? 'url' : 'upload'
     );
     setShowForm(true);
     setError('');

@@ -4,7 +4,6 @@ import './ImageUploader.css';
 
 const ACCEPTED = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 const MAX_BYTES = 5 * 1024 * 1024;
-const API_URL = import.meta.env.VITE_API_URL;
 
 export default function ImageUploader({ currentUrl, onUploaded }) {
   const inputRef = useRef(null);
@@ -35,10 +34,9 @@ export default function ImageUploader({ currentUrl, onUploaded }) {
     setUploading(true);
     try {
       const data = await uploadProductImage(file);
-      console.log(data.url);
-      onUploaded(`${API_URL}${data.url}`); // pass the server URL back to the parent form
+      onUploaded(data.url); // Cloudinary returns an absolute HTTPS URL.
       URL.revokeObjectURL(objectUrl);
-      setPreview(`${API_URL}${data.url}`); // update preview to use the server URL
+      setPreview(data.url);
     } catch (err) {
       setError(err?.message || 'Upload failed. Please try again.');
       setPreview(currentUrl || '');

@@ -1,5 +1,6 @@
 import os
 
+import cloudinary
 from dotenv import load_dotenv
 from flask import Flask
 from flask_cors import CORS
@@ -28,6 +29,15 @@ def create_app():
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "fallback_secret_key_for_development")
     app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024
+
+    # Cloudinary uses this process-wide configuration for all uploads. Secrets
+    # remain in environment variables and are never sent to the client.
+    cloudinary.config(
+        cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+        api_key=os.getenv("CLOUDINARY_API_KEY"),
+        api_secret=os.getenv("CLOUDINARY_API_SECRET"),
+        secure=True,
+    )
 
     CORS(app)
 
